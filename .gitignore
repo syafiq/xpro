@@ -16,3 +16,8 @@ modules.order
 *~
 # vim backup files
 *.swp
+
+# undesired dir and file
+libbpf/src/build/
+src/xdp_loader
+src/xdp_stats
