@@ -1,0 +1,18 @@
+# Object files
+*.o
+*.ko
+*.ll
+
+# Kernel generated files
+*.ko.cmd
+*.o.cmd
+*.mod.c
+*.mod.o.cmd
+Module.symvers
+modules.order
+.tmp_versions/
+
+# Emacs backup files
+*~
+# vim backup files
+*.swp
