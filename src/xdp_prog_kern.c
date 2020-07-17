@@ -15,6 +15,13 @@ struct hdr_cursor {
 #define lock_xadd(ptr, val)	((void) __sync_fetch_and_add(ptr,val))
 #endif
 
+#define bpf_printk(fmt, ...)                                    \
+({                                                              \
+        char ____fmt[] = fmt;                                   \
+        bpf_trace_printk(____fmt, sizeof(____fmt),              \
+                         ##__VA_ARGS__);                        \
+})
+
 static __always_inline
 int parse_eth(struct hdr_cursor *nh, void *data_end, struct ethhdr **ethhdr, int *l3_offset){
 
@@ -37,9 +44,16 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
 	struct iphdr *iph = data + l3_offset;
+	struct key_addr ka;
+
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
 	}
+
+	ka.saddr = iph->saddr;
+	ka.daddr = iph->daddr;
+
+	bpf_printk("src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
 	return XDP_PASS;
 }
