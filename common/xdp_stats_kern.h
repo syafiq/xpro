@@ -20,6 +20,13 @@ struct bpf_map_def SEC("maps") xdp_stats_map = {
 	.max_entries = XDP_ACTION_MAX,
 };
 
+struct bpf_map_def SEC("maps") ts1 = {
+	.type        = BPF_MAP_TYPE_ARRAY,
+	.key_size    = sizeof(struct key_addr),
+	.value_size  = sizeof(__u64),
+	.max_entries = XDP_ACTION_MAX,
+};
+
 static __always_inline
 __u32 xdp_stats_record_action(struct xdp_md *ctx, __u32 action)
 {
