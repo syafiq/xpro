@@ -12,6 +12,11 @@ struct datarec {
 	__u64 rx_bytes;
 };
 
+struct key_addr {
+	__u64 saddr;
+	__u64 daddr;
+};
+
 #ifndef XDP_ACTION_MAX
 #define XDP_ACTION_MAX (XDP_REDIRECT + 1)
 #endif
