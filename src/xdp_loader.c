@@ -68,42 +68,48 @@ static const struct option_wrapper long_options[] = {
 #endif
 
 const char *pin_basedir =  "/sys/fs/bpf";
-const char *map_name    =  "xdp_stats_map";
+const char *map_name[3];
 
 /* Pinning maps under /sys/fs/bpf in subdir */
 int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, struct config *cfg)
 {
 	char map_filename[PATH_MAX];
 	int err, len;
+	int MAX_MAP = 3;
+	int a;
+	map_name[0] = "xdp_stats_map";
+	map_name[1] = "ts1";
+	map_name[2] = "ts2";
 
-	len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
-		       pin_basedir, cfg->ifname, map_name);
-	if (len < 0) {
-		fprintf(stderr, "ERR: creating map_name\n");
-		return EXIT_FAIL_OPTION;
-	}
-
-	/* Existing/previous XDP prog might not have cleaned up */
-	if (access(map_filename, F_OK ) != -1 ) {
-		if (verbose)
-			printf(" - Unpinning (remove) prev maps in %s/\n",
-			       cfg->pin_dir);
-
-		/* Basically calls unlink(3) on map_filename */
-		err = bpf_object__unpin_maps(bpf_obj, cfg->pin_dir);
-		if (err) {
-			fprintf(stderr, "ERR: UNpinning maps in %s\n", cfg->pin_dir);
-			return EXIT_FAIL_BPF;
+	for(a=0; a<MAX_MAP; a++) {
+		len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
+			       pin_basedir, cfg->ifname, map_name);
+		if (len < 0) {
+			fprintf(stderr, "ERR: creating map_name\n");
+			return EXIT_FAIL_OPTION;
 		}
+
+		/* Existing/previous XDP prog might not have cleaned up */
+		if (access(map_filename, F_OK ) != -1 ) {
+			if (verbose)
+				printf(" - Unpinning (remove) prev maps in %s/\n",
+				       cfg->pin_dir);
+
+			/* Basically calls unlink(3) on map_filename */
+			err = bpf_object__unpin_maps(bpf_obj, cfg->pin_dir);
+			if (err) {
+				fprintf(stderr, "ERR: UNpinning maps in %s\n", cfg->pin_dir);
+				return EXIT_FAIL_BPF;
+			}
+		}
+		if (verbose)
+			printf(" - Pinning maps in %s/\n", cfg->pin_dir);
+
+		/* This will pin all maps in our bpf_object */
+		err = bpf_object__pin_maps(bpf_obj, cfg->pin_dir);
+		if (err)
+			return EXIT_FAIL_BPF;
 	}
-	if (verbose)
-		printf(" - Pinning maps in %s/\n", cfg->pin_dir);
-
-	/* This will pin all maps in our bpf_object */
-	err = bpf_object__pin_maps(bpf_obj, cfg->pin_dir);
-	if (err)
-		return EXIT_FAIL_BPF;
-
 	return 0;
 }
 
