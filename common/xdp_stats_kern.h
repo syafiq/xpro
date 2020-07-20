@@ -21,10 +21,11 @@ struct bpf_map_def SEC("maps") xdp_stats_map = {
 };
 
 struct bpf_map_def SEC("maps") ts1 = {
-	.type        = BPF_MAP_TYPE_ARRAY,
+	.type        = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size    = sizeof(struct key_addr),
 	.value_size  = sizeof(__u64),
-	.max_entries = XDP_ACTION_MAX,
+	.max_entries = 10000,
+        .map_flags   = BPF_F_NO_PREALLOC,
 };
 
 static __always_inline
