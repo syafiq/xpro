@@ -1,1 +1,1 @@
-sudo ./xdp_loader --dev lo --skb-mode
+sudo strace ./xdp_loader --dev lo --skb-mode
