@@ -75,11 +75,12 @@ int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, struct config *cfg)
 {
 	char map_filename[PATH_MAX];
 	int err, len;
-	int MAX_MAP = 3;
+	int MAX_MAP = 4;
 	int a;
 	map_name[0] = "xdp_stats_map";
 	map_name[1] = "ts1";
 	map_name[2] = "ts2";
+	map_name[3] = "counter_c";
 
 	for(a=0; a<MAX_MAP; a++) {
 		len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
