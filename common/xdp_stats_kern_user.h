@@ -13,8 +13,8 @@ struct datarec {
 };
 
 struct key_addr {
-	__u64 saddr;
-	__u64 daddr;
+	__u32 saddr;
+	__u32 daddr;
 };
 
 #ifndef XDP_ACTION_MAX
