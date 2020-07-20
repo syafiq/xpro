@@ -28,6 +28,15 @@ struct bpf_map_def SEC("maps") ts1 = {
         .map_flags   = BPF_F_NO_PREALLOC,
 };
 
+
+struct bpf_map_def SEC("maps") ts2 = {
+	.type        = BPF_MAP_TYPE_PERCPU_HASH,
+	.key_size    = sizeof(struct key_addr),
+	.value_size  = sizeof(__u64),
+	.max_entries = 10000,
+        .map_flags   = BPF_F_NO_PREALLOC,
+};
+
 static __always_inline
 __u32 xdp_stats_record_action(struct xdp_md *ctx, __u32 action)
 {
