@@ -45,6 +45,9 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	void *data     = (void *)(long)ctx->data;
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
+	__u64 *ts1_get;
+	__u64 *ts2_get;
+	__u64 *c_get;
 
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
@@ -52,6 +55,10 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 
 	ka.saddr = iph->saddr;
 	ka.daddr = iph->daddr;
+
+	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
+	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
+	c_get = bpf_map_lookup_elem(&counter_c, &ka);
 
 	bpf_printk("src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
