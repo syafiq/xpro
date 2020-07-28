@@ -84,7 +84,7 @@ int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, struct config *cfg)
 
 	for(a=0; a<MAX_MAP; a++) {
 		len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
-			       pin_basedir, cfg->ifname, map_name);
+			       pin_basedir, cfg->ifname, map_name[a]);
 		if (len < 0) {
 			fprintf(stderr, "ERR: creating map_name\n");
 			return EXIT_FAIL_OPTION;
