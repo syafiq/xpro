@@ -59,7 +59,7 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 
 	ka.saddr = iph->saddr;
 	ka.daddr = iph->daddr;
-	//bpf_printk("src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
+	bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
 	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
