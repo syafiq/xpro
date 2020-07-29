@@ -45,8 +45,8 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	void *data     = (void *)(long)ctx->data;
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
-	__u64 *ts1_get, *ts2_get, *c_get, *dc_get;
-	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, t_now;
+	__u64 *ts1_get, *ts2_get, *c_get, *dc_get, *t_now;
+	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, get_ns;
 	__u64 one = 1;
 	__u64 zero = 0;
 	__u64 TT1 = 60000;
@@ -64,18 +64,19 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
 	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
 	c_get = bpf_map_lookup_elem(&counter_c, &ka);
-	t_now = bpf_ktime_get_ns();
+	get_ns = bpf_ktime_get_ns();
+	t_now = &get_ns;
 
-	if(ts1_get && ts2_get && c_get) {
-		if((&t_now-ts2_get) > TT1) {
-			ts1_val = bpf_map_update_elem(&ts1, &ka, &t_now, BPF_EXIST);
-                        c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_EXIST);
-                        dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_EXIST);
-                        mark_val = bpf_map_update_elem(&mark, &ka, &one, BPF_EXIST);	
+	if(ts1_get && ts2_get && c_get && t_now) {
+		if((*t_now-*ts2_get) > TT1) {
+			ts1_val = bpf_map_update_elem(&ts1, &ka, t_now, BPF_EXIST);
+        	        c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_EXIST);
+        	        dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_EXIST);
+        	        mark_val = bpf_map_update_elem(&mark, &ka, &one, BPF_EXIST);	
 		}
 	} else {
-		ts1_val = bpf_map_update_elem(&ts1, &ka, &t_now, BPF_ANY);
-                ts2_val = bpf_map_update_elem(&ts2, &ka, &t_now, BPF_ANY);
+		ts1_val = bpf_map_update_elem(&ts1, &ka, t_now, BPF_ANY);
+                ts2_val = bpf_map_update_elem(&ts2, &ka, t_now, BPF_ANY);
                 c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_ANY);
                 dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_ANY);
                 mark_val = bpf_map_update_elem(&mark, &ka, &zero, BPF_ANY);
@@ -83,7 +84,13 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 
 	c_get = bpf_map_lookup_elem(&counter_c, &ka);
         dc_get = bpf_map_lookup_elem(&diffcount_dc, &ka);
-        ts2_val = bpf_map_update_elem(&ts2, &ka, &t_now, BPF_EXIST);
+        ts2_val = bpf_map_update_elem(&ts2, &ka, t_now, BPF_EXIST);
+
+	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
+	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
+	if (ts1_get && ts2_get && c_get) {
+		bpf_printk("DEBUG: c_get : %llu, ts1_get: %llu, ts2_get: %llu\n", *c_get, *ts1_get, *ts2_get);
+	}
 
 	return XDP_PASS;
 }
