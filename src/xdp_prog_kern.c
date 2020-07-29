@@ -49,6 +49,8 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, get_ns;
 	__u64 one = 1;
 	__u64 zero = 0;
+	__u64 incr_c = 0;
+	__u64 incr_dc = 0;
 	__u64 TT1 = 60000;
 	//__u64 TT2 = 60000;
 	//__u64 TF1 = 60000;
@@ -83,7 +85,16 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	}
 
 	c_get = bpf_map_lookup_elem(&counter_c, &ka);
+	if (c_get) {
+		incr_c = (__u64) *c_get+one;
+		c_val = bpf_map_update_elem(&counter_c, &ka, &incr_c, BPF_EXIST);
+	}
         dc_get = bpf_map_lookup_elem(&diffcount_dc, &ka);
+	if (dc_get) {
+		incr_dc = *dc_get+one;
+		dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &incr_dc, BPF_EXIST);
+	}
+
         ts2_val = bpf_map_update_elem(&ts2, &ka, t_now, BPF_EXIST);
 
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
