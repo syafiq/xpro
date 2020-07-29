@@ -52,8 +52,8 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	__u64 incr_c = 0;
 	__u64 incr_dc = 0;
 	__u64 TT1 = 60000;
-	//__u64 TT2 = 60000;
-	//__u64 TF1 = 60000;
+	__u64 TT2 = 60000;
+	__u64 TF1 = 60000;
 
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
@@ -91,7 +91,7 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	}
         dc_get = bpf_map_lookup_elem(&diffcount_dc, &ka);
 	if (dc_get) {
-		incr_dc = *dc_get+one;
+		incr_dc = (__u64) *dc_get+one;
 		dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &incr_dc, BPF_EXIST);
 	}
 
@@ -99,8 +99,19 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
 	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
+
+	//if (ts1_get && ts2_get && c_get) {
+	//	bpf_printk("c_get:%llu, ts1_get:%llu, ts2_get:%llu\n", *c_get, *ts1_get, *ts2_get);
+	//	bpf_printk("diff_ts %llu \n", *ts2_get-*ts1_get);
+	//}
+
 	if (ts1_get && ts2_get && c_get) {
-		bpf_printk("DEBUG: c_get : %llu, ts1_get: %llu, ts2_get: %llu\n", *c_get, *ts1_get, *ts2_get);
+		if ((*ts2_get-*ts1_get) > TT2 ) { //FIXME : This seems to be always 0 -> confirm to CG?
+			if ((*c_get/(*ts2_get-*ts1_get)) > TF1) {
+				return XDP_DROP;
+				// Send an overload warning
+			}
+		}
 	}
 
 	return XDP_PASS;
