@@ -68,19 +68,22 @@ static const struct option_wrapper long_options[] = {
 #endif
 
 const char *pin_basedir =  "/sys/fs/bpf";
-const char *map_name[3];
+const char *map_name[7];
 
 /* Pinning maps under /sys/fs/bpf in subdir */
 int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, struct config *cfg)
 {
 	char map_filename[PATH_MAX];
 	int err, len;
-	int MAX_MAP = 4;
+	int MAX_MAP = 7;
 	int a;
 	map_name[0] = "xdp_stats_map";
 	map_name[1] = "ts1";
 	map_name[2] = "ts2";
 	map_name[3] = "counter_c";
+	map_name[4] = "ts1_star";
+	map_name[5] = "ts2_star";
+	map_name[6] = "c_star";
 
 	for(a=0; a<MAX_MAP; a++) {
 		len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",
