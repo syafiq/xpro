@@ -46,17 +46,19 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
 	__u64 *ts1_get, *ts2_get, *c_get, *dc_get, *t_now;
-	__u64 *ts1_star_get, *ts2_star_get;
+	__u64 *ts1_star_get, *ts2_star_get, *c_star_get;
 	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, get_ns;
-	__u64 ts1_star_val, ts2_star_val;
+	__u64 ts1_star_val, ts2_star_val, c_star_val;
 	__u64 one = 1;
 	__u64 zero = 0;
 	__u64 incr_c = 0;
 	__u64 incr_dc = 0;
+	__u64 incr_c_star = 0;
 	__u64 TT1 = 60000;
 	__u64 TT2 = 60000;
+	__u64 TT3 = 60000;
 	__u64 TF1 = 60000;
-	//__u64 TF2 = 60000;
+	__u64 TF2 = 60000;
 	__u32 dest_addr;
 
 	if (iph + 1 > data_end) {
@@ -141,6 +143,30 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 		}
 	}
 
+	c_star_get = bpf_map_lookup_elem(&c_star, &dest_addr);
+	if (c_star_get && c_get && dc_get) {
+		incr_c_star = (__u64) *c_star_get + (__u64) *c_get + (__u64) *dc_get;
+		c_star_val = bpf_map_update_elem(&c_star, &dest_addr, &incr_c_star, BPF_EXIST);
+	} else {
+		if (c_get && dc_get) {
+			incr_c_star = (__u64) *c_get + (__u64) *dc_get;
+			c_star_val = bpf_map_update_elem(&c_star,&dest_addr, &incr_c_star, BPF_NOEXIST);
+		}
+	}
+
+	ts1_star_get = bpf_map_lookup_elem(&ts1_star, &dest_addr);
+	ts2_star_get = bpf_map_lookup_elem(&ts2_star, &dest_addr);
+	c_star_get = bpf_map_lookup_elem(&c_star, &dest_addr);
+
+	if (ts1_star_get && ts2_star_get && c_star_get) {
+		if (*ts2_star_get - *ts1_star_get > TT3) {
+			if ((*c_star_get/(*ts2_star_get-*ts1_star_get)) > TF2) {
+				return XDP_DROP;
+			}
+		}
+	}
+
+	// remove tunnel header and forward packet
 	return XDP_PASS;
 }
 
