@@ -46,7 +46,9 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
 	__u64 *ts1_get, *ts2_get, *c_get, *dc_get, *t_now;
+	__u64 *ts1_star_get, *ts2_star_get;
 	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, get_ns;
+	__u64 ts1_star_val, ts2_star_val;
 	__u64 one = 1;
 	__u64 zero = 0;
 	__u64 incr_c = 0;
@@ -54,6 +56,8 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	__u64 TT1 = 60000;
 	__u64 TT2 = 60000;
 	__u64 TF1 = 60000;
+	//__u64 TF2 = 60000;
+	__u32 dest_addr;
 
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
@@ -111,6 +115,29 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 				return XDP_DROP;
 				// Send an overload warning
 			}
+		}
+	}
+
+	dest_addr = iph->daddr;
+	ts1_star_get = bpf_map_lookup_elem(&ts1_star, &dest_addr);
+	if (ts1_star_get && ts1_get) {
+		if (*ts1_get < *ts1_star_get) {
+			ts1_star_val = bpf_map_update_elem(&ts1_star, &dest_addr, ts1_get, BPF_EXIST);
+		}
+	} else {
+		if (ts1_get) {
+			ts1_star_val = bpf_map_update_elem(&ts1_star, &dest_addr, ts1_get, BPF_NOEXIST);
+		}
+	}
+
+	ts2_star_get = bpf_map_lookup_elem(&ts2_star, &dest_addr);
+	if (ts2_star_get && ts2_get) {
+		if (*ts2_get > *ts2_star_get) {
+			ts2_star_val = bpf_map_update_elem(&ts2_star, &dest_addr, ts2_get, BPF_EXIST);
+		}
+	} else {
+		if (ts2_get) {
+			ts2_star_val = bpf_map_update_elem(&ts2_star, &dest_addr, ts2_get, BPF_NOEXIST);
 		}
 	}
 
