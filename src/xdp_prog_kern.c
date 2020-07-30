@@ -159,6 +159,7 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	c_star_get = bpf_map_lookup_elem(&c_star, &dest_addr);
 
 	if (ts1_star_get && ts2_star_get && c_star_get) {
+		// bpf_printk("ts1_star: %llu, ts2_star: %llu, c_star: %llu", *ts1_star_get, *ts2_star_get, *c_star_get);
 		if (*ts2_star_get - *ts1_star_get > TT3) {
 			if ((*c_star_get/(*ts2_star_get-*ts1_star_get)) > TF2) {
 				return XDP_DROP;
