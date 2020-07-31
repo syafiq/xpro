@@ -36,6 +36,13 @@ int main(int argc, char **argv) {
 		.value_size	= sizeof(__u64),
 		.max_entries	= 10000,
 	};
+	int interval = 2;
+	int len, err;
+
+	struct config cfg = {
+		.ifindex	= -1,
+		.do_unload	= false,
+	};
 
 	parse_cmdline_args(argc, argv, long_options, &cfg, __doc__);
 
