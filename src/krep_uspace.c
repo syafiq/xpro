@@ -11,6 +11,14 @@ static const char *__doc__ = "userspace part of krep \n";
 #include <time.h>
 
 #include <bpf/bpf.h>
+#include <net/if.h>
+#include <linux/if_link.h> /* depend on kernel-headers installed */
+
+#include "../common/common_params.h"
+#include "../common/common_user_bpf_xdp.h"
+#include "../common/xdp_stats_kern_user.h"
+
+#include "bpf_util.h" /* bpf_num_possible_cpus */
 
 struct record_sd {
 	struct key_addr key;
@@ -19,16 +27,53 @@ struct record_sd {
 	__u64 c;
 	__u64 dc;
 	__u64 mark;
-}
+};
 
 struct record_d {
 	__u64 daddr;
 	__u64 ts1_star;
 	__u64 ts2_star;
 	__u64 c_star;
+};
+
+static const struct option_wrapper long_options[] = {
+	{{"help",        no_argument,		NULL, 'h' },
+	 "Show help", false},
+
+	{{"dev",         required_argument,	NULL, 'd' },
+	 "Operate on device <ifname>", "<ifname>", true},
+
+	{{"quiet",       no_argument,		NULL, 'q' },
+	 "Quiet mode (no output)"},
+
+	{{0, 0, NULL,  0 }}
+};
+
+static int stats_poll(const char *pin_dir, int map_fd, __u32 id, 
+		      __u32 map_type, int interval) {
+	struct bpf_map_info info = {};
+	setlocale(LC_NUMERIC, "en_US");
+
+	while(1) {
+		map_fd = open_bpf_map_file(pin_dir, "ts1", &info);
+		if (map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		} else if (id != info.id) {
+			printf("BPF map xdp_stats_map changed its ID, restarting\n");
+			close(map_fd);
+			return 0;
+		}
+
+		close(map_fd);
+		sleep(interval);
+	}
 }
 
 const char *pin_basedir = "/sys/fs/bpf";
+
+#ifndef PATH_MAX
+#define PATH_MAX	4096
+#endif
 
 int main(int argc, char **argv) {
 	const struct bpf_map_info map_expect = {
@@ -36,7 +81,10 @@ int main(int argc, char **argv) {
 		.value_size	= sizeof(__u64),
 		.max_entries	= 10000,
 	};
+	struct bpf_map_info info = { 0 };
 	int interval = 2;
+	char pin_dir[PATH_MAX];
+	int ts1_map_fd;
 	int len, err;
 
 	struct config cfg = {
@@ -60,15 +108,19 @@ int main(int argc, char **argv) {
 	}
 
 	for ( ;; ) {
+		ts1_map_fd = open_bpf_map_file(pin_dir, "ts1", &info);
+		if (ts1_map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		}
 		err = check_map_fd_info(&info, &map_expect);
 		if (err) {
 			fprintf(stderr, "ERR: map via FD not compatible\n");
-			close(stats_map_fd);
+			close(ts1_map_fd);
 			return err;
 		}
 
-		err = stats_poll(pin_dir, stats_map_fd, info.id, info.type, interval);
-		close(stats_map_fd);
+		err = stats_poll(pin_dir, ts1_map_fd, info.id, info.type, interval);
+		close(ts1_map_fd);
 		if (err < 0)
 			return err;
 	}
