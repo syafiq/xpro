@@ -57,7 +57,7 @@ static const struct option_wrapper long_options[] = {
 
 static void stats_collect_and_print(int map_fd, __u64 record) {
 	struct key_addr key, prev_key;
-	struct in_addr ip_addr;
+	struct in_addr ips_addr, ipd_addr;
 	__u64 res;
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
@@ -65,30 +65,153 @@ static void stats_collect_and_print(int map_fd, __u64 record) {
 		if(res < 0) {
 			printf("No value??\n");
 		} else {
-			ip_addr.s_addr = key.saddr;
-			printf("key: %s, val: %llu\n", inet_ntoa(ip_addr), record);
+			ips_addr.s_addr = key.saddr;
+			ipd_addr.s_addr = key.daddr;
+			printf("s:%s, d:%s, t:%llu\n", inet_ntoa(ips_addr), 
+						       inet_ntoa(ipd_addr), record);
 		}
     		prev_key=key;
 	}
 }
 
-static int stats_poll(const char *pin_dir, int map_fd, __u32 id, int interval) {
-	struct bpf_map_info info = {};
-	__u64 record = 0;
+static int stats_poll(const char *pin_dir, int interval) {
+	const struct bpf_map_info map_expect = {
+		.key_size	= sizeof(struct key_addr),
+		.value_size	= sizeof(__u64),
+		.max_entries	= 10000,
+	};
+	struct bpf_map_info info, info_ts1, info_ts2, info_c, info_dc, info_mark = { 0 };
+	int ts1_map_fd, ts2_map_fd, c_map_fd, dc_map_fd, mark_map_fd;
+	int err_ts1, err_ts2, err_c, err_dc, err_mark;
+	__u64 record_ts1=0, record_ts2=0, record_c=0, record_dc=0, record_mark = 0;
 	setlocale(LC_NUMERIC, "en_US");
 
+	// TS1
+	ts1_map_fd = open_bpf_map_file(pin_dir, "ts1", &info_ts1);
+	if (ts1_map_fd < 0) {
+		return EXIT_FAIL_BPF;
+	}
+	err_ts1 = check_map_fd_info(&info_ts1, &map_expect);
+	if (err_ts1) {
+		fprintf(stderr, "ERR: map via FD not compatible\n");
+		close(ts1_map_fd);
+		return err_ts1;
+	}
+
+	// TS2
+	ts2_map_fd = open_bpf_map_file(pin_dir, "ts2", &info_ts2);
+	if (ts2_map_fd < 0) {
+		return EXIT_FAIL_BPF;
+	}
+	err_ts2 = check_map_fd_info(&info_ts2, &map_expect);
+	if (err_ts2) {
+		fprintf(stderr, "ERR: map via FD not compatible\n");
+		close(ts2_map_fd);
+		return err_ts2;
+	}
+
+	// Counter C
+	c_map_fd = open_bpf_map_file(pin_dir, "counter_c", &info_c);
+	if (c_map_fd < 0) {
+		return EXIT_FAIL_BPF;
+	}
+	err_c = check_map_fd_info(&info_c, &map_expect);
+	if (err_c) {
+		fprintf(stderr, "ERR: map via FD not compatible\n");
+		close(c_map_fd);
+		return err_c;
+	}
+
+	// Diffcount dc
+	dc_map_fd = open_bpf_map_file(pin_dir, "diffcount_dc", &info_dc);
+	if (dc_map_fd < 0) {
+		return EXIT_FAIL_BPF;
+	}
+	err_dc = check_map_fd_info(&info_dc, &map_expect);
+	if (err_dc) {
+		fprintf(stderr, "ERR: map via FD not compatible\n");
+		close(dc_map_fd);
+		return err_dc;
+	}
+
+	// mark
+	mark_map_fd = open_bpf_map_file(pin_dir, "mark", &info_mark);
+	if (mark_map_fd < 0) {
+		return EXIT_FAIL_BPF;
+	}
+	err_mark = check_map_fd_info(&info_mark, &map_expect);
+	if (err_mark) {
+		fprintf(stderr, "ERR: map via FD not compatible\n");
+		close(mark_map_fd);
+		return err_mark;
+	}
+
 	while(1) {
-		map_fd = open_bpf_map_file(pin_dir, "ts1", &info);
-		if (map_fd < 0) {
+		ts1_map_fd = open_bpf_map_file(pin_dir, "ts1", &info);
+		if (ts1_map_fd < 0) {
 			return EXIT_FAIL_BPF;
-		} else if (id != info.id) {
+		} else if (info_ts1.id != info.id) {
 			printf("BPF map xdp_stats_map changed its ID, restarting\n");
-			close(map_fd);
+			close(ts1_map_fd);
 			return 0;
 		}
+		printf("TS1 \n");
+		stats_collect_and_print(ts1_map_fd, record_ts1);
+		close(ts1_map_fd);
+		printf("\n");
 
-		stats_collect_and_print(map_fd, record);
-		close(map_fd);
+		ts2_map_fd = open_bpf_map_file(pin_dir, "ts2", &info);
+		if (ts2_map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		} else if (info_ts2.id != info.id) {
+			printf("BPF map xdp_stats_map changed its ID, restarting\n");
+			close(ts2_map_fd);
+			return 0;
+		}
+		printf("TS2 \n");
+		stats_collect_and_print(ts2_map_fd, record_ts2);
+		close(ts2_map_fd);
+		printf("\n");
+
+		c_map_fd = open_bpf_map_file(pin_dir, "counter_c", &info);
+		if (c_map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		} else if (info_c.id != info.id) {
+			printf("BPF map xdp_stats_map changed its ID, restarting\n");
+			close(c_map_fd);
+			return 0;
+		}
+		printf("Counter C \n");
+		stats_collect_and_print(c_map_fd, record_c);
+		close(c_map_fd);
+		printf("\n");
+
+		dc_map_fd = open_bpf_map_file(pin_dir, "diffcount_dc", &info);
+		if (dc_map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		} else if (info_dc.id != info.id) {
+			printf("BPF map xdp_stats_map changed its ID, restarting\n");
+			close(dc_map_fd);
+			return 0;
+		}
+		printf("Diffcount DC \n");
+		stats_collect_and_print(dc_map_fd, record_dc);
+		close(dc_map_fd);
+		printf("\n");
+
+		mark_map_fd = open_bpf_map_file(pin_dir, "mark", &info);
+		if (mark_map_fd < 0) {
+			return EXIT_FAIL_BPF;
+		} else if (info_mark.id != info.id) {
+			printf("BPF map xdp_stats_map changed its ID, restarting\n");
+			close(mark_map_fd);
+			return 0;
+		}
+		printf("TS1 \n");
+		stats_collect_and_print(mark_map_fd, record_mark);
+		close(mark_map_fd);
+		printf("\n");
+
 		sleep(interval);
 	}
 }
@@ -100,15 +223,8 @@ const char *pin_basedir = "/sys/fs/bpf";
 #endif
 
 int main(int argc, char **argv) {
-	const struct bpf_map_info map_expect = {
-		.key_size	= sizeof(struct key_addr),
-		.value_size	= sizeof(__u64),
-		.max_entries	= 10000,
-	};
-	struct bpf_map_info info = { 0 };
 	int interval = 2;
 	char pin_dir[PATH_MAX];
-	int ts1_map_fd;
 	int len, err;
 
 	struct config cfg = {
@@ -131,23 +247,9 @@ int main(int argc, char **argv) {
 		return EXIT_FAIL_OPTION;
 	}
 
-	for ( ;; ) {
-		ts1_map_fd = open_bpf_map_file(pin_dir, "ts1", &info);
-		if (ts1_map_fd < 0) {
-			return EXIT_FAIL_BPF;
-		}
-		err = check_map_fd_info(&info, &map_expect);
-		if (err) {
-			fprintf(stderr, "ERR: map via FD not compatible\n");
-			close(ts1_map_fd);
-			return err;
-		}
-
-		err = stats_poll(pin_dir, ts1_map_fd, info.id, interval);
-		close(ts1_map_fd);
-		if (err < 0)
-			return err;
-	}
+	err = stats_poll(pin_dir, interval);
+	if (err < 0)
+		return err;
 
 	return EXIT_OK;
 }
