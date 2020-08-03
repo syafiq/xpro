@@ -24,6 +24,7 @@ static const char *__doc__ = "userspace part of krep \n";
 #include "../common/xdp_stats_kern_user.h"
 
 #include "bpf_util.h" /* bpf_num_possible_cpus */
+#include <arpa/inet.h>
 
 struct record_sd {
 	struct key_addr key;
@@ -54,8 +55,9 @@ static const struct option_wrapper long_options[] = {
 	{{0, 0, NULL,  0 }}
 };
 
-static void stats_collect(int map_fd, __u64 record) {
+static void stats_collect_and_print(int map_fd, __u64 record) {
 	struct key_addr key, prev_key;
+	struct in_addr ip_addr;
 	__u64 res;
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
@@ -63,7 +65,8 @@ static void stats_collect(int map_fd, __u64 record) {
 		if(res < 0) {
 			printf("No value??\n");
 		} else {
-			printf("key: %u, val: %llu\n", key.saddr ,record);
+			ip_addr.s_addr = key.saddr;
+			printf("key: %s, val: %llu\n", inet_ntoa(ip_addr), record);
 		}
     		prev_key=key;
 	}
@@ -84,7 +87,7 @@ static int stats_poll(const char *pin_dir, int map_fd, __u32 id, int interval) {
 			return 0;
 		}
 
-		stats_collect(map_fd, record);
+		stats_collect_and_print(map_fd, record);
 		close(map_fd);
 		sleep(interval);
 	}
