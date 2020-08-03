@@ -1,3 +1,8 @@
+/*
+CAVEAT;
+- for now, this code only works with a single CPU computer. 
+*/
+
 static const char *__doc__ = "userspace part of krep \n";
 
 #include <stdio.h>
@@ -49,9 +54,24 @@ static const struct option_wrapper long_options[] = {
 	{{0, 0, NULL,  0 }}
 };
 
-static int stats_poll(const char *pin_dir, int map_fd, __u32 id, 
-		      __u32 map_type, int interval) {
+static void stats_collect(int map_fd, __u64 record) {
+	struct key_addr key, prev_key;
+	__u64 res;
+
+	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
+		res = bpf_map_lookup_elem(map_fd, &key, &record);
+		if(res < 0) {
+			printf("No value??\n");
+		} else {
+			printf("key: %u, val: %llu\n", key.saddr ,record);
+		}
+    		prev_key=key;
+	}
+}
+
+static int stats_poll(const char *pin_dir, int map_fd, __u32 id, int interval) {
 	struct bpf_map_info info = {};
+	__u64 record = 0;
 	setlocale(LC_NUMERIC, "en_US");
 
 	while(1) {
@@ -64,6 +84,7 @@ static int stats_poll(const char *pin_dir, int map_fd, __u32 id,
 			return 0;
 		}
 
+		stats_collect(map_fd, record);
 		close(map_fd);
 		sleep(interval);
 	}
@@ -119,7 +140,7 @@ int main(int argc, char **argv) {
 			return err;
 		}
 
-		err = stats_poll(pin_dir, ts1_map_fd, info.id, info.type, interval);
+		err = stats_poll(pin_dir, ts1_map_fd, info.id, interval);
 		close(ts1_map_fd);
 		if (err < 0)
 			return err;
