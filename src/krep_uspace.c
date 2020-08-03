@@ -57,7 +57,8 @@ static const struct option_wrapper long_options[] = {
 
 static void stats_collect_and_print(int map_fd, __u64 record) {
 	struct key_addr key, prev_key;
-	struct in_addr ips_addr, ipd_addr;
+	char source_addr[16];
+	char dest_addr[16];
 	__u64 res;
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
@@ -65,10 +66,17 @@ static void stats_collect_and_print(int map_fd, __u64 record) {
 		if(res < 0) {
 			printf("No value??\n");
 		} else {
-			ips_addr.s_addr = key.saddr;
-			ipd_addr.s_addr = key.daddr;
-			printf("s:%s, d:%s, t:%llu\n", inet_ntoa(ips_addr), 
-						       inet_ntoa(ipd_addr), record);
+			const char *res_s = inet_ntop(AF_INET, &key.saddr, 
+					              source_addr, sizeof(source_addr));
+			if (res_s==0) {
+				printf("failed to convert address to string (errno=%d)",errno);
+			}
+			const char *res_d = inet_ntop(AF_INET, &key.daddr, 
+					              dest_addr, sizeof(dest_addr));
+			if (res_d==0) {
+				printf("failed to convert address to string (errno=%d)",errno);
+			}
+			printf("s:%s, d:%s, val:%llu\n", source_addr, dest_addr, record);
 		}
     		prev_key=key;
 	}
@@ -207,7 +215,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(mark_map_fd);
 			return 0;
 		}
-		printf("TS1 \n");
+		printf("Mark \n");
 		stats_collect_and_print(mark_map_fd, record_mark);
 		close(mark_map_fd);
 		printf("\n");
