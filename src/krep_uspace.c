@@ -28,7 +28,7 @@ static const char *__doc__ = "userspace part of krep \n";
 #include <stdint.h>
 #include <inttypes.h>
 #define BILLION  1000000000L
-#include "../hiredis/hiredis.h"
+#include <hiredis/hiredis.h>
 
 struct record_sd {
 	struct key_addr key;
