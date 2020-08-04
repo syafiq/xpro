@@ -55,11 +55,20 @@ static const struct option_wrapper long_options[] = {
 	{{0, 0, NULL,  0 }}
 };
 
+static unsigned long get_nsecs(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+}
+
 static void stats_collect_and_print(int map_fd, __u64 record) {
 	struct key_addr key, prev_key;
 	char source_addr[16];
 	char dest_addr[16];
 	__u64 res;
+	__u64 now_since_boot = get_nsecs();
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
 		res = bpf_map_lookup_elem(map_fd, &key, &record);
@@ -76,7 +85,8 @@ static void stats_collect_and_print(int map_fd, __u64 record) {
 			if (res_d==0) {
 				printf("failed to convert address to string (errno=%d)",errno);
 			}
-			printf("s:%s, d:%s, val:%llu\n", source_addr, dest_addr, record);
+			printf("s:%s, d:%s, val:%llu, now:%llu\n", source_addr, 
+					dest_addr, record, now_since_boot);
 		}
     		prev_key=key;
 	}
