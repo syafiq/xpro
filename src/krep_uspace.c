@@ -25,6 +25,9 @@ static const char *__doc__ = "userspace part of krep \n";
 
 #include "bpf_util.h" /* bpf_num_possible_cpus */
 #include <arpa/inet.h>
+#include <stdint.h>
+#include <inttypes.h>
+#define BILLION  1000000000L
 
 struct record_sd {
 	struct key_addr key;
@@ -55,20 +58,32 @@ static const struct option_wrapper long_options[] = {
 	{{0, 0, NULL,  0 }}
 };
 
-static unsigned long get_nsecs(void)
-{
-    struct timespec ts;
+static unsigned long get_nsecs(void) {
+	struct timespec ts;
 
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+    	clock_gettime(CLOCK_MONOTONIC, &ts);
+    	return ts.tv_sec * 1000000000UL + ts.tv_nsec;
 }
 
-static void stats_collect_and_print(int map_fd, __u64 record) {
+static unsigned long epoch_nsecs(void) {
+	long int ns;
+  	time_t sec;
+  	struct timespec spec;
+
+  	clock_gettime(CLOCK_REALTIME, &spec);
+  	sec = spec.tv_sec;
+  	ns = spec.tv_nsec;
+
+  	return (uint64_t) sec * BILLION + (uint64_t) ns;
+}
+
+static void stats_collect_and_print(int map_fd, __u64 record, bool is_time) {
 	struct key_addr key, prev_key;
 	char source_addr[16];
 	char dest_addr[16];
 	__u64 res;
 	__u64 now_since_boot = get_nsecs();
+	__u64 now_since_epoch = epoch_nsecs();
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
 		res = bpf_map_lookup_elem(map_fd, &key, &record);
@@ -85,8 +100,13 @@ static void stats_collect_and_print(int map_fd, __u64 record) {
 			if (res_d==0) {
 				printf("failed to convert address to string (errno=%d)",errno);
 			}
-			printf("s:%s, d:%s, val:%llu, now:%llu\n", source_addr, 
-					dest_addr, record, now_since_boot);
+			if (is_time) {
+				printf("s:%s, d:%s, val:%llu\n", source_addr, 
+					dest_addr, now_since_epoch-(now_since_boot-record));
+			} else {
+				printf("s:%s, d:%s, val:%llu\n", source_addr, 
+					dest_addr, record);
+			}
 		}
     		prev_key=key;
 	}
@@ -174,7 +194,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("TS1 \n");
-		stats_collect_and_print(ts1_map_fd, record_ts1);
+		stats_collect_and_print(ts1_map_fd, record_ts1, true);
 		close(ts1_map_fd);
 		printf("\n");
 
@@ -187,7 +207,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("TS2 \n");
-		stats_collect_and_print(ts2_map_fd, record_ts2);
+		stats_collect_and_print(ts2_map_fd, record_ts2, true);
 		close(ts2_map_fd);
 		printf("\n");
 
@@ -200,7 +220,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Counter C \n");
-		stats_collect_and_print(c_map_fd, record_c);
+		stats_collect_and_print(c_map_fd, record_c, false);
 		close(c_map_fd);
 		printf("\n");
 
@@ -213,7 +233,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Diffcount DC \n");
-		stats_collect_and_print(dc_map_fd, record_dc);
+		stats_collect_and_print(dc_map_fd, record_dc, false);
 		close(dc_map_fd);
 		printf("\n");
 
@@ -226,7 +246,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Mark \n");
-		stats_collect_and_print(mark_map_fd, record_mark);
+		stats_collect_and_print(mark_map_fd, record_mark, false);
 		close(mark_map_fd);
 		printf("\n");
 
