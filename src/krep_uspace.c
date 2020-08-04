@@ -28,6 +28,7 @@ static const char *__doc__ = "userspace part of krep \n";
 #include <stdint.h>
 #include <inttypes.h>
 #define BILLION  1000000000L
+#include "../hiredis/hiredis.h"
 
 struct record_sd {
 	struct key_addr key;
@@ -84,6 +85,16 @@ static void stats_collect_and_print(int map_fd, __u64 record, bool is_time) {
 	__u64 res;
 	__u64 now_since_boot = get_nsecs();
 	__u64 now_since_epoch = epoch_nsecs();
+
+	redisContext *c = redisConnect("127.0.0.1", 6379);
+	if (c == NULL || c->err) {
+		if (c) {
+			printf("Error: %s\n", c->errstr);
+			// handle error
+		} else {
+			printf("Can't allocate redis context\n");
+		}
+	}
 
 	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
 		res = bpf_map_lookup_elem(map_fd, &key, &record);
