@@ -78,19 +78,20 @@ static unsigned long epoch_nsecs(void) {
   	return (uint64_t) sec * BILLION + (uint64_t) ns;
 }
 
-static void stats_collect_and_print(int map_fd, __u64 record, bool is_time) {
+static void stats_collect_and_print(int map_fd, __u64 record, bool is_time, const char *type_map) {
 	struct key_addr key, prev_key;
 	char source_addr[16];
 	char dest_addr[16];
+	char key_db[40];
 	__u64 res;
 	__u64 now_since_boot = get_nsecs();
 	__u64 now_since_epoch = epoch_nsecs();
 
 	redisContext *c = redisConnect("127.0.0.1", 6379);
+	redisReply *reply;
 	if (c == NULL || c->err) {
 		if (c) {
 			printf("Error: %s\n", c->errstr);
-			// handle error
 		} else {
 			printf("Can't allocate redis context\n");
 		}
@@ -111,13 +112,20 @@ static void stats_collect_and_print(int map_fd, __u64 record, bool is_time) {
 			if (res_d==0) {
 				printf("failed to convert address to string (errno=%d)",errno);
 			}
+			snprintf(key_db, sizeof(key_db), "%s,%s_%s", source_addr, dest_addr, 
+				 type_map);
 			if (is_time) {
-				printf("s:%s, d:%s, val:%llu\n", source_addr, 
-					dest_addr, now_since_epoch-(now_since_boot-record));
+				reply = redisCommand(c,"SET %s %llu", key_db, 
+						now_since_epoch-(now_since_boot-record));
+				//printf("s:%s, d:%s, val:%llu\n", source_addr, 
+				//	dest_addr, now_since_epoch-(now_since_boot-record));
 			} else {
-				printf("s:%s, d:%s, val:%llu\n", source_addr, 
-					dest_addr, record);
+				reply = redisCommand(c,"SET %s %llu", key_db, record);
+				//printf("s:%s, d:%s, val:%llu\n", source_addr, 
+				//	dest_addr, record);
 			}
+			printf("SET: %s\n", reply->str);
+			freeReplyObject(reply);
 		}
     		prev_key=key;
 	}
@@ -205,7 +213,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("TS1 \n");
-		stats_collect_and_print(ts1_map_fd, record_ts1, true);
+		stats_collect_and_print(ts1_map_fd, record_ts1, true, "ts1");
 		close(ts1_map_fd);
 		printf("\n");
 
@@ -218,7 +226,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("TS2 \n");
-		stats_collect_and_print(ts2_map_fd, record_ts2, true);
+		stats_collect_and_print(ts2_map_fd, record_ts2, true, "ts2");
 		close(ts2_map_fd);
 		printf("\n");
 
@@ -231,7 +239,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Counter C \n");
-		stats_collect_and_print(c_map_fd, record_c, false);
+		stats_collect_and_print(c_map_fd, record_c, false, "c");
 		close(c_map_fd);
 		printf("\n");
 
@@ -244,7 +252,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Diffcount DC \n");
-		stats_collect_and_print(dc_map_fd, record_dc, false);
+		stats_collect_and_print(dc_map_fd, record_dc, false, "dc");
 		close(dc_map_fd);
 		printf("\n");
 
@@ -257,7 +265,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			return 0;
 		}
 		printf("Mark \n");
-		stats_collect_and_print(mark_map_fd, record_mark, false);
+		stats_collect_and_print(mark_map_fd, record_mark, false, "mark");
 		close(mark_map_fd);
 		printf("\n");
 
