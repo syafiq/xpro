@@ -23,3 +23,4 @@ src/xdp_loader
 src/xdp_stats
 src/trace_read
 src/krep_uspace
+src/syncdb
