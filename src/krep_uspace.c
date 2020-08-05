@@ -115,7 +115,7 @@ static void stats_collect_and_print(int map_fd, __u64 record, bool is_time, cons
 			snprintf(key_db, sizeof(key_db), "%s,%s_%s", source_addr, dest_addr, 
 				 type_map);
 			if (is_time) {
-				reply = redisCommand(c,"SET %s %llu", key_db, 
+				reply = redisCommand(c,"HSET %s %llu", key_db, 
 						now_since_epoch-(now_since_boot-record));
 				//printf("s:%s, d:%s, val:%llu\n", source_addr, 
 				//	dest_addr, now_since_epoch-(now_since_boot-record));
@@ -129,6 +129,7 @@ static void stats_collect_and_print(int map_fd, __u64 record, bool is_time, cons
 		}
     		prev_key=key;
 	}
+	redisFree(c);
 }
 
 static int stats_poll(const char *pin_dir, int interval) {
