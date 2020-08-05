@@ -112,19 +112,17 @@ static void stats_collect_and_print(int map_fd, __u64 record, bool is_time, cons
 			if (res_d==0) {
 				printf("failed to convert address to string (errno=%d)",errno);
 			}
-			snprintf(key_db, sizeof(key_db), "%s,%s_%s", source_addr, dest_addr, 
-				 type_map);
+			snprintf(key_db, sizeof(key_db), "%s,%s", source_addr, dest_addr);
 			if (is_time) {
-				reply = redisCommand(c,"HSET %s %llu", key_db, 
+				//printf("k:%s, h:%s, val:%llu\n", key_db, type_map,
+				//	now_since_epoch-(now_since_boot-record));
+				reply = redisCommand(c,"HSET %s %s %llu", key_db, type_map,
 						now_since_epoch-(now_since_boot-record));
-				//printf("s:%s, d:%s, val:%llu\n", source_addr, 
-				//	dest_addr, now_since_epoch-(now_since_boot-record));
 			} else {
-				reply = redisCommand(c,"SET %s %llu", key_db, record);
-				//printf("s:%s, d:%s, val:%llu\n", source_addr, 
-				//	dest_addr, record);
+				//printf("k:%s, h:%s, val:%llu\n", key_db, type_map, record);
+				reply = redisCommand(c,"HSET %s %s %llu", key_db, type_map, record);
 			}
-			printf("SET: %s\n", reply->str);
+			//printf("SET: %s\n", reply->str);
 			freeReplyObject(reply);
 		}
     		prev_key=key;
@@ -213,7 +211,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(ts1_map_fd);
 			return 0;
 		}
-		printf("TS1 \n");
+		//printf("TS1 \n");
 		stats_collect_and_print(ts1_map_fd, record_ts1, true, "ts1");
 		close(ts1_map_fd);
 		printf("\n");
@@ -226,7 +224,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(ts2_map_fd);
 			return 0;
 		}
-		printf("TS2 \n");
+		//printf("TS2 \n");
 		stats_collect_and_print(ts2_map_fd, record_ts2, true, "ts2");
 		close(ts2_map_fd);
 		printf("\n");
@@ -239,7 +237,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(c_map_fd);
 			return 0;
 		}
-		printf("Counter C \n");
+		//printf("Counter C \n");
 		stats_collect_and_print(c_map_fd, record_c, false, "c");
 		close(c_map_fd);
 		printf("\n");
@@ -252,7 +250,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(dc_map_fd);
 			return 0;
 		}
-		printf("Diffcount DC \n");
+		//printf("Diffcount DC \n");
 		stats_collect_and_print(dc_map_fd, record_dc, false, "dc");
 		close(dc_map_fd);
 		printf("\n");
@@ -265,7 +263,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 			close(mark_map_fd);
 			return 0;
 		}
-		printf("Mark \n");
+		//printf("Mark \n");
 		stats_collect_and_print(mark_map_fd, record_mark, false, "mark");
 		close(mark_map_fd);
 		printf("\n");
