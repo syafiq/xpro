@@ -165,13 +165,13 @@ When the packet arrives, the device driver runs and eBPF program within XDP hook
 \item Forward the packet to the userspace program, or
 \item Allow the packet to be processed through a normal networking stack
 \end{enumerate}
-In accordance with that, our aim in this paper is to block the bogus packet as early as possible, i.e. in the XDP hook. The process of selecting which packet is legitimate and/or which packet is bogus is communicated through multiple BPF maps. A more detailed description about how we utilize XDP is explained in the next chapter. 
+In accordance with that, our aim in this paper is to block the bogus packets at the earliest possible point, even before processed in the kernel. The process of selecting which packet is legitimate and/or which packet is bogus is communicated through multiple BPF maps. A more detailed description about how we utilize XDP is explained in the next chapter. 
 
-The logic in eBPF program running inside XDP hook is written in high level language, i.e. C, and compiled into a bytecode. Kernel has the job to statically analyze the produced bytecode, in terms of the safeness before the execution. If the code is safe, then the bytecode will be translated into a native instructions.
+The logic of eBPF program running inside XDP hook is written in high level language, i.e. C, and compiled into a bytecode. Kernel has the job to safeguard the eBPF program by verifying them. This verification happens during a load time of the program to the interface. If the code is safe, then the bytecode will be translated into a native machine instructions in order to achieve high performance.
 
 \section{Reverse-Firewall-Proxy}
 \subsection{Proxy system architecture}
-The proxy system consists of a set of proxies interconnected through an internal IP network. Each proxy is also assumed to have direct network connectivity. The proxy nodes shares filtering and also load information using a shared DB in the system. The solution is agnostic to a particular DB sharing method, but in our case, we use an in-memory database called Redis \cite{redis}. A wholistic perspective of our proxy architecture can be seen in the fig \ref{proxies}.
+The proxy system consists of a set of proxies interconnected through an internal IP network. Each proxy is also assumed to have direct network connectivity. The proxy nodes shares filtering and also load information using a shared DB in the system. The solution is agnostic to a particular DB sharing method, but in our case, we use an in-memory database called Redis \cite{redis}. Our proxy architecture can be seen in the fig \ref{proxies}.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[scale=0.35]{pic/proxies.png}}
@@ -179,9 +179,11 @@ The proxy system consists of a set of proxies interconnected through an internal
 \label{proxies}
 \end{figure}
 
-Each IoT unit must have the connectivity towards all available proxy. It means, mesh network will be created between IoT units and the respective proxy. Also, as already mentioned previously, all proxies must have the same visibility in regards to which message needs to be blocked. Therefore, there has to be a mechanism to share information about this between proxies one way or another. 
+Each IoT unit must have the connectivity towards all available proxy, meaning that mesh network will be created between IoT units and the respective proxy. Also, as already mentioned previously, all proxies must have the same visibility in regards to which message needs to be blocked. Therefore, there has to be a mechanism to share information about this between proxies one way or another. 
 
-As we would like to block the bogus messages as early as possible in the XDP hook, those information needs to be shared between kernel-space and user-space. This is where the BPF maps comes into place. Each proxy has a running redis instance, which syncronize each other through redis replication mechanism \cite{redissync}, performing the synchronization protocol explained in subchapter \ref{psp}. The syncronized data then communicated to the eBPF program running in the XDP hook through the BPF maps. This way, we are able to pass the information between proxies without the need to send the invalid packet to the userspace. This way, we can reduce the CPU utilization in the userland and allocate the CPU into more important task, i.e. packet filtering in the kernel. Our argument is that the less tasks performed in the userspace, the more CPU can be utilized by the XDP to block the invalid messages, hence we get more packet filtering capacity in the kernel. Figure \ref{proxies_xdp} represent the connection between our packet filter mechanism with the syncronization function between databases.
+As we would like to block the bogus messages at the earliest possible point, i.e. in the XDP hook, those information needs to be shared between kernel-space and user-space (and vice versa). This is where the BPF maps comes into place. As shown in figure \ref{proxies_xdp}, each proxy has a running redis instance, which syncronize each other through a process on each proxy, namely \textit{syncdb}. This process performs a synchronization protocol explained in subchapter \ref{psp}. The syncronized data then communicated to the eBPF program using another process called \textit{sync\_maps\_and\_ldb}. This process synchronize an already synched local redis instance with the BPF maps, which can be accessed directly by the eBPF program in the kernel.  
+
+This way, we are able to pass the information between proxies without the need to send the invalid packet to the userspace. Hence, reducing the CPU utilization in the userland and allocate the CPU to a more important task, i.e. packet filtering in the kernel. Our argument is that the less tasks performed in the userspace, the more CPU can be utilized by the XDP to block the invalid messages, hence we get more packet filtering capacity in the kernel. Figure \ref{proxies_xdp} represent the connection between our packet filter mechanism with the syncronization function between databases.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[scale=0.35]{pic/proxies_xdp.png}}
@@ -189,20 +191,20 @@ As we would like to block the bogus messages as early as possible in the XDP hoo
 \label{proxies_xdp}
 \end{figure}
 
-\subsection{IoT unit architecture and general procedure}
-From the standpoint of IoT device, the proxy management is purely handled by the network interface or modems. This approach allows the modem to provide a standard network interface to the IoT OS. Figure \ref{iot_network} depict the relationship between IoT main MCU with the network interface. 
+%\subsection{IoT unit architecture and general procedure}
+%From the standpoint of IoT device, the proxy management is purely handled by the network interface or modems. This approach allows the modem to provide a standard network interface to the IoT OS. Figure \ref{iot_network} depict the relationship between IoT main MCU with the network interface. 
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[scale=0.17]{pic/iot.png}}
-\caption{Dedicated Tunneled Network Interface (\textbf{a better and clearer picture will be created later})}
-\label{iot_network}
-\end{figure}
+%\begin{figure}[htbp]
+%\centerline{\includegraphics[scale=0.17]{pic/iot.png}}
+%\caption{Dedicated Tunneled Network Interface (\textbf{a better and clearer picture will be created later})}
+%\label{iot_network}
+%\end{figure}
 
-The network modem is responsible for the proxy management for outbound traffic, i.e.:
-\begin{itemize}
-\item The network modem keeps track of available IoT proxies in the system and change “current destination proxy” if the one currently use is overloaded or unavailable. Information of availability and load is obtained through a separate proxy management protocol, explained in the next subchapter. 
-\item The modem tunnels all outbound traffic to the current proxy using either an IP tunnel, http or CoAP tunnel where the original source IP packet is encapsulated (not preventing IP or http level end-to-end security). Inbound traffic is treated completely transparently not affecting the modem or the IoT system at all.
-\end{itemize}
+%The network modem is responsible for the proxy management for outbound traffic, i.e.:
+%\begin{itemize}
+%\item The network modem keeps track of available IoT proxies in the system and change “current destination proxy” if the one currently use is overloaded or unavailable. Information of availability and load is obtained through a separate proxy management protocol, explained in the next subchapter. 
+%\item The modem tunnels all outbound traffic to the current proxy using either an IP tunnel, http or CoAP tunnel where the original source IP packet is encapsulated (not preventing IP or http level end-to-end security). Inbound traffic is treated completely transparently not affecting the modem or the IoT system at all.
+%\end{itemize}
 
 \section{Algorithm}
 \subsection{Notations}
