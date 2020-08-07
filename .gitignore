@@ -24,3 +24,11 @@ src/xdp_stats
 src/trace_read
 src/krep_uspace
 src/syncdb
+
+# tex related
+*.log
+*.bbl
+*.aux
+*.blg
+*.out
+*.synctex.gz
