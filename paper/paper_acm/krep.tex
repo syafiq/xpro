@@ -209,17 +209,14 @@ This way, we are able to pass the information between proxies without the need t
 \section{Algorithm}
 \subsection{Notations}
 \begin{itemize}
-\item Set of IoT devices in the system: $U$
-\item An IoT device: $u \in U$
+\item Set of client devices in the system: $U$
+\item An client device: $u \in U$
 \item Set of proxies devices in the system: $P$
 \item Proxy: $p \in P$
-\item A device unique index given to an IoT device: $i$
-\item An IoT device with index i: $u_i$
+\item A unique index given to a client: $i$
+\item An client device with index i: $u_i$
 \item A proxy unique network address associated with a proxy: $j$
 \item A proxy with address j: $p_j$
-\item A symmetric shared secret between IoT unit $u_i$ and proxy $p_j$: $K_{ij}$
-\item An integrity protection session key shared between an IoT unit and a proxy: $IK$
-\item An encryption protection session key shared between an IoT unit and a proxy: $EK$
 \item Work load of a proxy unit: $W$
 \item Work load threshold of a proxy unit: $T_W$
 \item Time stamp indicating the "oldest time" packet time for a particular $(i,D_{addr})$ pair: $ts_1$
@@ -238,20 +235,22 @@ This way, we are able to pass the information between proxies without the need t
 
 \subsection{Proxy Synchronization Protocol}
 \label{psp}
-For every time period $t$, each proxy $p_j$ performs the synchronization procedure with the master database, described in the algorithm 1. The initial process started with $p_j$ updates its current workload to the $M_{DB}$, which then replied by $M_{DB}$ with the information containing the workload for all other proxies except $p_j$. With those information in hand, $p_j$ looks up each pair $(i, D_{addr})$ sequentially and performs further computation.
+In order to have the same visibility on every proxy, one needs to have a synchronization function between them. This section explain in more detail those function, which has been implemented in our proof of concept inside the \textit{syncdb} process. 
 
-For each pair, $p_j$ looks up at the local database $L_{DB}$. If $L_{DB}$ contains information about $(i, D_{addr})$, then further processing is performed according to the algorithm 1. Otherwise, information about $ts_1', ts_2', c'$ will be fetched from $M_{DB}$ and copied to $L_{DB}$. At the end of the syncronization procedure, $p_j$ updates the remaining information for all $(i, D_{addr})$ to the $M_{DB}$.
+For every time period $t$, each proxy $p_j$ performs the synchronization procedure with the master database, described in the algorithm \ref{alg_psp}. The initial process started with $p_j$ updates its current workload to the $M_{DB}$, which then replied by $M_{DB}$ with the information containing the workload for all other proxies except $p_j$. $p_j$ iterate through every $(i, D_{addr})$ inside the $M_{DB}$, and for each pair of $(i, D_{addr})$, $p_j$ looks up at the local database $L_{DB}$. If $L_{DB}$ contains information about $(i, D_{addr})$, it checks whether $mark$ is equal to 1, together with if $ts_1'$ minus $ts_1$ is greater than $T_{T1}$. If both conditions hold, both local value of $mark'$ and $dc'$ is set to 0, and the value of $ts_1$, $ts_2$ and $c$ is updated from the local value in $p_j$.
+
+On the other hand, if both conditions do not hold, $mark'$ is set to 0. If local value $ts_2'$ is less than $M_{DB}$'s value $ts_2$, the local value is updated with the remote master database value. Furthermore, if $ts_2'$ minus $ts_1$ is greater than the fourth filtering minimum measure time threshold used by a proxy, $T_{T4}$, then the local value of $ts_1'$ is updated through the following equation : $ts_2'-(ts_2'-ts_1)/r$. The rest of the process is described in the algorithm \ref{alg_psp}. 
 
 \begin{algorithm}
 \caption{Proxy Synchronization Protocol}
-\begin{algorithmic}[1]
 \label{alg_psp}
+\begin{algorithmic}[1]
 \State $p_j$ send the $W$ value to $M_{DB}$
 \State $p_j$ reads the current workload for all other proxies in the system, $\{W_k\}, p_k \in P, k \neq i$
 \State $p_j$ looks all the pair $(i, D_{addr})$, for $u_i \in U$
 \For{each $(i, D_{addr})$ in $M_{DB}$}
 	\If{$L_{DB} \ni i, D_{addr}$}
-		\If {$(mark = 1$ and $ts_1' - ts_1 > T_{T1})$} 
+		\If {$(mark' = 1$ and $ts_1' - ts_1 > T_{T1})$} 
 			\State $<mark' = 0, dc' = 0>$
 			\State $<ts_1=ts_1', ts_2=ts_2', c=c'>$
 		\Else
@@ -286,13 +285,19 @@ For each pair, $p_j$ looks up at the local database $L_{DB}$. If $L_{DB}$ contai
 \end{algorithm}
 
 \subsection{Packet Filtering Procedures}
-When the packet arrives at the proxy, the procedures described in the algorithm 2 takes place. Initially, $p_j$ looks up and read the time stamps $ts_1'$ and $ts_2'$ for the record $(i, D_{addr})$ from the local database $L_{DB}$. If the record is found, $p_j$ will compare the difference between the current time and $ts_2'$ with the first filtering reset threshold used by the proxy. If the difference value is bigger than $T_{T1}$, then $ts_1'$ is set to be the current time, $c'$ is reset to be 0.
+When the packet arrives at the proxy, the procedures described in the algorithm \ref{alg_pfs} takes place. All the process in this part, happens inside the kernel space, within the $xdp\_prog\_kern$ mentioned in the figure \ref{proxies_xdp}. Therefore, the local database $L_{DB}$ we mention in this section means a bpf map, not a redis instance.
 
-On the other hand, if $L_{DB}$ does not contain $(i, D_{addr})$ $p_j$ is looking for, both $ts_1'$ and $ts_2'$ will be set to the current time, as well as resetting $c'$ to 0. The next step is to increase both the counter $c'$ and the counter difference $dc$ values with 1. If the difference between $ts_1'$ and $ts_2'$ is larger than the second filtering minimum measure time threshold $T_{T2}$, then $p_j$ compares the value of $c'$ divided by the difference of $ts_1'$ and $ts_2'$ with the first packet maximum allowed frequency threshold, $T_{F1}$. If its greater than $T_{F1}$, the respective packet is dropped by the XDP. 
+Initially, $p_j$ looks up and read the time stamps $ts_1'$ and $ts_2'$ for the record $(i, D_{addr})$ from the local database $L_{DB}$. If the record is found, $p_j$ compares the difference between the current time and $ts_2'$ with the first filtering reset threshold $T_{T1}$. If the difference value is bigger than $T_{T1}$, then $ts_1'$ is set to be the current time, $c'$ and $dc$ are reset to be 0 and $mark$ equal to 1. 
 
-Further packet processing performs simillar mechanism to the previous one, but involving $ts_1*, ts_2*, c*, T_{T3}$ and $T_{F2}$ as described in the algorithm 2. If the respective packet passed all the check mentioned above, the tunnel header will be removed and the packet is forwarded to the final destination.  
+On the other hand, if $L_{DB}$ does not contain $(i, D_{addr})$, both $ts_1'$ and $ts_2'$ will be set to the current time, as well as resetting $c', dc$ and $mark$ to 0. The next step is to increase both the counter $c'$ and the counter difference $dc$ values with 1, and set $ts_2'$ with the current time. 
+
+If the difference between $ts_2'$ and $ts_1'$ is larger than the second filtering minimum measure time threshold $T_{T2}$, then $p_j$ compares the value of $c'$ divided by the difference of $ts_1'$ and $ts_2'$ with the first packet maximum allowed frequency threshold, $T_{F1}$. If its greater than $T_{F1}$, the respective packet is dropped by the XDP, followed by sending an overload warning to the responsible administrator. 
+
+If the packet passed through the previous checks, further packet processing involving statistical measurement is performed. First, $p_j$ calculates the minimum value of $ts_1$ corresponding to the same $D_{addr}$ from all the set of $U$, namely $ts_1*$. Second, it calculates the maximum value of $ts_2$ and the sum of $c+dc$ from the same set $U$, namely $ts_2*$ and $c*$ respectively. If $c*$ divided by $ts_2*$ minus $ts_1*$ is greater than $T_{F2}$, the respective packet $(i, D_{addr})$ is dropped, otherwise the packet is forwarded to $D_{addr}$.
+
 \begin{algorithm}
 \caption{Packet Filtering Procedures}
+\label{alg_pfs}
 \begin{algorithmic}[1]
 \State $<$Lookup $ts_1', ts_2',c$ for record $(i,D_{addr})$ in $L_{DB}>$
 \If{record found}
@@ -319,7 +324,7 @@ Further packet processing performs simillar mechanism to the previous one, but i
 		\State $<$Drop packet$>$
 	\EndIf
 \EndIf
-\State $<$remove tunnel header and forward packet$>$
+\State $<$forward packet$>$
 \end{algorithmic}
 \end{algorithm}
 
