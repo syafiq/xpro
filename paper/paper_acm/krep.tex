@@ -148,16 +148,16 @@ Another new approach is by detecting malicious traffic based on the heartbeat as
 Our solution fills the gap by effectively send all the traffic from the IoT device to our proxy while at the same time maintaining all the proxy well-informed on the traffic condition from a wider perspective. Also, as the informations are shared between proxies, proxy in different locations can catch-up the whole situation faster once DDoS happen in the network. This lead to a better DDoS mitigation in case the master of the botnets decide to launch the attack simultaniously using different bots from different locations. 
 
 \section{Background}
-\subsection{Express Data Path}
-Express Data Path (XDP) \cite{10.1145/3281411.3281443} is a novel programmable packet processing, living inside the kernel-space. Currently, XDP is part of the mainland linux kernel and has the ability to work together with other parts of networking stack in the kernel.
+\subsection{Express Data Path (XDP)}
+Express Data Path (XDP) \cite{10.1145/3281411.3281443} is a novel programmable packet processing, living inside the kernel-space. XDP has been part of the mainland linux kernel since 4.20. One would argue that a kernel by-pass solution (i.e. DPDK \cite{dpdk}) would be more suitable for a fast packet processing. However, by-passing the kernel would neglect its rich features that might be useful for an intermediate node processing, i.e. firewall, router, proxy, etc. 
 
-\begin{figure}[htbp]
-\centerline{\includegraphics[scale=0.35]{pic/xdp-diagram-cut.png}}
-\caption{XDP Building Blocks \cite{10.1145/3281411.3281443}}
-\label{xdp}
-\end{figure}
+%\begin{figure}[htbp]
+%\centerline{\includegraphics[scale=0.35]{pic/xdp-diagram-cut.png}}
+%\caption{XDP Building Blocks \cite{10.1145/3281411.3281443}}
+%\label{xdp}
+%\end{figure}
 
-As shown in fig \ref{xdp}, when the packet arrives, there is an XDP hook inside the device driver. It has the ability to run an eBPF program, such that the XDP hook could determine whether to:
+When the packet arrives, the device driver runs and eBPF program within XDP hook. This process happens even before touching the packet data. During this early process, the eBPF program is able to determine the fate of the packet, in which one of the following would happen:
 \begin{enumerate}
 \item Drop the packet
 \item Send the packet back out to the same interface
@@ -165,9 +165,9 @@ As shown in fig \ref{xdp}, when the packet arrives, there is an XDP hook inside 
 \item Forward the packet to the userspace program, or
 \item Allow the packet to be processed through a normal networking stack
 \end{enumerate}
-Our aim in this paper is to block the packet as early as possible, i.e. in the XDP hook, and communicate the control plane data, i.e. which packet should be dropped, through the BPF maps. A more detailed description about how we utilize XDP is explained in the next chapter. 
+In accordance with that, our aim in this paper is to block the bogus packet as early as possible, i.e. in the XDP hook. The process of selecting which packet is legitimate and/or which packet is bogus is communicated through multiple BPF maps. A more detailed description about how we utilize XDP is explained in the next chapter. 
 
-The logic in XDP is written in high level language, i.e. C, and compiled into a bytecode. Kernel has the job to statically analyze the produced bytecode, in terms of the safeness before the execution. If the code is safe, then the bytecode will be translated into a native instructions. We leverage XDP simply because of its performance. It has been proven that a single-core CPU running an XDP packet processor software could process as high as 24 million packets per second.
+The logic in eBPF program running inside XDP hook is written in high level language, i.e. C, and compiled into a bytecode. Kernel has the job to statically analyze the produced bytecode, in terms of the safeness before the execution. If the code is safe, then the bytecode will be translated into a native instructions.
 
 \section{Reverse-Firewall-Proxy}
 \subsection{Proxy system architecture}
@@ -322,6 +322,8 @@ Further packet processing performs simillar mechanism to the previous one, but i
 \end{algorithm}
 
 \section{Implementation}
+\subsection{Proxy}
+\subsection{Master Database}
 
 \section{Experimental Evaluation}
 
