@@ -75,7 +75,7 @@
 %%
 %% The "title" command has an optional parameter,
 %% allowing the author to define a "short title" to be used in page headers.
-\title{X-Pro: Distributed XDP Proxies against DDoS}
+\title{X-Pro: Distributed XDP Proxies against Botnets of Things}
 
 %%
 %% The "author" command and its associated commands are used to define
@@ -104,7 +104,7 @@
 \begin{abstract}
 The concept of Internet of Things promised to connect billions of devices around the globe to the internet and capable to communicate each other. However, the device itself is especially vulnerable to be used as a bot to launch a massive Distributed-Denial-of-Service attack. The main problem with the IoT devices are usually resource-constrained, such that implementing a strong security protection is a non-trivial problem. Hence, they are easily turned from a usable embedded device into a bot for launching DDoS attack. 
 
-A source-based DDoS detection could help reducing the impact of DDoS attack by blocking traffic from the source address of adversary. However, determining the legitimacy of the traffic close to the source is a hard problem, because the volume might not be big enough to be deemed as an attack. Also, from the economic standpoint, putting a classifier node close to the source of an attack is not incentivise the service provider. In this paper, we present a reverse-firewall proxy on the cloud working together with virtualized network interface of the embedded device to mitigate against DDoS attack. On the IoT side, our solution can be deployed by pure implementation on the network interface function of embedded device, not affecting the rest functionality of the device itself. Also, as the DDoS detection happens at the cloud, it is possible to share a large number of real-time traffic situation to make a better decision on the legitimacy of a traffic. We evaluate the performance of our solution from several point of view. In conclusion, our solution offers a better decision making in terms of an attack traffic, as well as preserving the resource of the victime from a severe DDoS attack.  
+A source-based DDoS detection could help reducing the impact of DDoS attack by blocking traffic from the source address of adversary. However, determining the legitimacy of the traffic close to the source is a hard problem, because the volume might not be big enough to be deemed as an attack. Also, from the economic standpoint, placing a classifier node close to the source is not incentivising the service provider. In this paper, we present a reverse-firewall proxy on the cloud working together as a distributed synchronous proxies to mitigate DDoS attack. We evaluate the performance of our solution from several point of view. In conclusion, our solution offers a better decision making in terms of an attack traffic, as well as preserving the resource of the victims from a severe DDoS attack.  
 \end{abstract}
 
 %%
@@ -170,6 +170,8 @@ In accordance with that, our aim in this paper is to block the bogus packets at 
 The logic of eBPF program running inside XDP hook is written in high level language, i.e. C, and compiled into a bytecode. Kernel has the job to safeguard the eBPF program by verifying them. This verification happens during a load time of the program to the interface. If the code is safe, then the bytecode will be translated into a native machine instructions in order to achieve high performance.
 
 \section{Reverse-Firewall-Proxy}
+\subsection{Application Scenario}
+
 \subsection{Proxy system architecture}
 The proxy system consists of a set of proxies interconnected through an internal IP network. Each proxy is also assumed to have direct network connectivity. The proxy nodes shares filtering and also load information using a shared DB in the system. The solution is agnostic to a particular DB sharing method, but in our case, we use an in-memory database called Redis \cite{redis}. Our proxy architecture can be seen in the fig \ref{proxies}.
 
@@ -328,11 +330,10 @@ If the packet passed through the previous checks, further packet processing invo
 \end{algorithmic}
 \end{algorithm}
 
-\section{Implementation}
-\subsection{Proxy}
-\subsection{Master Database}
-
 \section{Experimental Evaluation}
+To evaluate X-Pro, we have developed a proof of concept of the implementation. Both the proxies and the centralized database are implemented as a virtual machine on Fedora 30 operating system, running kernel version 5.6. Our implementation is as an open-source software at \cite{xpro}. This section discusses the results from our experimental evaluation, following different scenarios in the proxy side. We show that, by placing the logic of distributed proxy at the earliest possible point, even before reaching the kernel, we can have a decent performance of dropping undesired packets. 
+
+Our experiment follows the scenario in figure \ref{proxies}, deployed over a local ethernet network. All of the VMs of the proxies and centralized database are running with one vCPU and 1024 MB of memory. 
 
 \subsection{Results}
 
