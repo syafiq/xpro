@@ -54,10 +54,10 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	__u64 incr_c = 0;
 	__u64 incr_dc = 0;
 	__u64 incr_c_star = 0;
-	__u64 TT1 = 60000;
-	__u64 TT2 = 60000;
-	__u64 TT3 = 60000;
-	__u64 TF1 = 60000;
+	__u64 TT1 = 2000000000; //ns
+	__u64 TT2 = 1000000000; //ns
+	__u64 TT3 = 60000; //ns
+	__u64 TF1 = 500;
 	__u64 TF2 = 60000;
 	__u32 dest_addr;
 
@@ -67,8 +67,12 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 
 	ka.saddr = iph->saddr;
 	ka.daddr = iph->daddr;
-	bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
+	//bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
+	if (ka.saddr == 1194895552) {
+		//bpf_printk("drop by IP! \n");
+		return XDP_DROP;
+	}
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
 	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
 	c_get = bpf_map_lookup_elem(&counter_c, &ka);
@@ -76,7 +80,12 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	t_now = &get_ns;
 
 	if(ts1_get && ts2_get && c_get && t_now) {
+		//if (ts1_get && ts2_get && c_get) {
+		//	bpf_printk("ts1_get:%llu, ts2_get:%llu\n, t_now:%llu\n", *ts1_get, *ts2_get, *t_now);
+		//	bpf_printk("diff_tnow2 %llu \n", *t_now-*ts2_get);
+		//}
 		if((*t_now-*ts2_get) > TT1) {
+			//bpf_printk("inside TT1 \n");
 			ts1_val = bpf_map_update_elem(&ts1, &ka, t_now, BPF_EXIST);
         	        c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_EXIST);
         	        dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_EXIST);
@@ -112,8 +121,9 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	//}
 
 	if (ts1_get && ts2_get && c_get) {
-		if ((*ts2_get-*ts1_get) > TT2 ) { //FIXME : This seems to be always 0 -> confirm to CG?
-			if ((*c_get/(*ts2_get-*ts1_get)) > TF1) {
+		if ((*ts2_get-*ts1_get) > TT2 ) { 
+			if (((*c_get*1000000000)/(*ts2_get-*ts1_get)) > TF1) {
+				//bpf_printk("DROP! \n");
 				return XDP_DROP;
 				// Send an overload warning
 			}
