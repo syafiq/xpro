@@ -1,1 +1,1 @@
-sudo strace ./xdp_loader --dev enp0s8 --skb-mode
+sudo strace ./xdp_loader --dev ens3 --skb-mode
