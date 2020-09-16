@@ -69,10 +69,6 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	ka.daddr = iph->daddr;
 	//bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
-	if (ka.saddr == 1194895552) {
-		//bpf_printk("drop by IP! \n");
-		return XDP_DROP;
-	}
 	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
 	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
 	c_get = bpf_map_lookup_elem(&counter_c, &ka);
