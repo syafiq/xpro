@@ -214,7 +214,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 		//printf("TS1 \n");
 		stats_collect_and_print(ts1_map_fd, record_ts1, true, "ts1");
 		close(ts1_map_fd);
-		printf("\n");
+		//printf("\n");
 
 		ts2_map_fd = open_bpf_map_file(pin_dir, "ts2", &info);
 		if (ts2_map_fd < 0) {
@@ -227,7 +227,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 		//printf("TS2 \n");
 		stats_collect_and_print(ts2_map_fd, record_ts2, true, "ts2");
 		close(ts2_map_fd);
-		printf("\n");
+		//printf("\n");
 
 		c_map_fd = open_bpf_map_file(pin_dir, "counter_c", &info);
 		if (c_map_fd < 0) {
@@ -240,7 +240,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 		//printf("Counter C \n");
 		stats_collect_and_print(c_map_fd, record_c, false, "c");
 		close(c_map_fd);
-		printf("\n");
+		//printf("\n");
 
 		dc_map_fd = open_bpf_map_file(pin_dir, "diffcount_dc", &info);
 		if (dc_map_fd < 0) {
@@ -253,7 +253,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 		//printf("Diffcount DC \n");
 		stats_collect_and_print(dc_map_fd, record_dc, false, "dc");
 		close(dc_map_fd);
-		printf("\n");
+		//printf("\n");
 
 		mark_map_fd = open_bpf_map_file(pin_dir, "mark", &info);
 		if (mark_map_fd < 0) {
@@ -266,7 +266,7 @@ static int stats_poll(const char *pin_dir, int interval) {
 		//printf("Mark \n");
 		stats_collect_and_print(mark_map_fd, record_mark, false, "mark");
 		close(mark_map_fd);
-		printf("\n");
+		//printf("\n");
 
 		sleep(interval);
 	}
