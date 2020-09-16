@@ -26,7 +26,7 @@ int is_idaddr_in_ldb(char *id, redisReply *r)
 
 int main() 
 {
-	redisContext *c_m = redisConnect("192.168.57.12", 6379);
+	redisContext *c_m = redisConnect("192.168.122.79", 6379);
 	redisReply *reply_m;
 
 	redisContext *c_l = redisConnect("127.0.0.1", 6379);
