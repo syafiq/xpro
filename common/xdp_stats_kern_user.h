@@ -17,6 +17,16 @@ struct key_addr {
 	__u32 daddr;
 };
 
+__u64 maparr[5];
+
+struct mapval {
+	__u64 ts1;
+	__u64 ts2;
+	__u64 c;
+	__u64 dc;
+	__u64 mark;
+};
+
 #ifndef XDP_ACTION_MAX
 #define XDP_ACTION_MAX (XDP_REDIRECT + 1)
 #endif

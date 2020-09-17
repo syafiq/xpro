@@ -20,42 +20,10 @@ struct bpf_map_def SEC("maps") xdp_stats_map = {
 	.max_entries = XDP_ACTION_MAX,
 };
 
-struct bpf_map_def SEC("maps") ts1 = {
+struct bpf_map_def SEC("maps") mapall = {
 	.type        = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size    = sizeof(struct key_addr),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") ts2 = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(struct key_addr),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") counter_c = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(struct key_addr),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") diffcount_dc = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(struct key_addr),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") mark = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(struct key_addr),
-	.value_size  = sizeof(__u64),
+	.value_size  = sizeof(maparr),
 	.max_entries = 10000,
         .map_flags   = BPF_F_NO_PREALLOC,
 };
