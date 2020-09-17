@@ -46,15 +46,12 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
 	struct mapval mv;
-	//__u64 mv_val; 
 	__u64 get_ns, *t_now;
 	__u64 TT1 = 2000000000; //ns -> 2 sec
 	__u64 TT2 = 1000000000; //ns -> 1 sec
-	__u64 TT3 = 2000000000; //ns
+	//__u64 TT3 = 2000000000; //ns
 	__u64 TF1 = 500;
-	__u64 TF2 = 500;
-	__u64 prev_c = 0;
-	__u64 prev_dc = 0;
+	//__u64 TF2 = 500;
 
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
@@ -74,9 +71,6 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 		mv.c = *((__u64 *)mv_get +2); 
 		mv.dc = *((__u64 *)mv_get +3); 
 		mv.mark = *((__u64 *)mv_get +4); 
-
-		prev_c = mv.c; // for star calculation
-		prev_dc = mv.dc; // for star calculation
 
 		if((*t_now-mv.ts2) > TT1) {
 			mv.ts1 = (__u64) *t_now;
@@ -111,40 +105,6 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 			bpf_printk("DROP HIGH! \n");
 			return XDP_DROP;
 			// Send an overload warning
-		}
-	}
-	
-	struct starval sv;
-	__u32 daddr_star = iph->daddr;
-	__u64 *sv_star = bpf_map_lookup_elem(&mapstar, &daddr_star);
-	if (sv_star) {
-		sv.ts1_min = *((__u64 *)sv_star);
-		sv.ts2_max = *((__u64 *)sv_star+1);
-		sv.cdc_star = *((__u64 *)sv_star+2);
-		if (mv.ts1 < sv.ts1_min) {
-			sv.ts1_min = mv.ts1;
-		}
-		if (mv.ts2 > sv.ts2_max) {
-			sv.ts2_max = mv.ts2;
-		}
-		if ((prev_c != 0) && (prev_dc != 0)) {
-			sv.cdc_star = sv.cdc_star-prev_c-prev_dc+mv.c+mv.dc;
-		}
-	} else {
-		sv.ts1_min = mv.ts1;
-		sv.ts2_max = mv.ts2;
-		sv.cdc_star = mv.c + mv.dc;
-	}
-
-	__u64 sv_arr[5] = {sv.ts1_min, sv.ts2_max, sv.cdc_star};
-	void *svv = sv_arr;
-
-	bpf_map_update_elem(&mapstar, &daddr_star, svv, BPF_ANY);
-
-	if ((sv.ts2_max - sv.ts1_min) > TT3) {
-		if (((sv.cdc_star*1000000000) / (sv.ts2_max-sv.ts1_min)) > TF2) {
-			bpf_printk("DROP LOW! \n");
-			return XDP_DROP;
 		}
 	}
 	

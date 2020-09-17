@@ -18,7 +18,6 @@ struct key_addr {
 };
 
 __u64 maparr[5];
-__u64 stararr[3];
 
 struct mapval {
 	__u64 ts1;
@@ -26,12 +25,6 @@ struct mapval {
 	__u64 c;
 	__u64 dc;
 	__u64 mark;
-};
-
-struct starval {
-	__u64 ts1_min;
-	__u64 ts2_max;
-	__u64 cdc_star;
 };
 
 #ifndef XDP_ACTION_MAX
