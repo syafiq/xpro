@@ -79,9 +79,7 @@ int pin_maps_in_bpf_object(struct bpf_object *bpf_obj, struct config *cfg)
 	int a;
 	map_name[0] = "xdp_stats_map";
 	map_name[1] = "mapall";
-	map_name[2] = "ts1_star";
-	map_name[3] = "ts2_star";
-	map_name[4] = "c_star";
+	map_name[2] = "mapstar";
 
 	for(a=0; a<MAX_MAP; a++) {
 		len = snprintf(map_filename, PATH_MAX, "%s/%s/%s",

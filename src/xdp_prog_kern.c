@@ -45,21 +45,16 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	void *data     = (void *)(long)ctx->data;
 	struct iphdr *iph = data + l3_offset;
 	struct key_addr ka;
-	__u64 *ts1_get, *ts2_get, *c_get, *dc_get, *t_now;
-	__u64 *ts1_star_get, *ts2_star_get, *c_star_get;
-	__u64 ts1_val, ts2_val, c_val, dc_val, mark_val, get_ns;
-	__u64 ts1_star_val, ts2_star_val, c_star_val;
-	__u64 one = 1;
-	__u64 zero = 0;
-	__u64 incr_c = 0;
-	__u64 incr_dc = 0;
-	__u64 incr_c_star = 0;
-	__u64 TT1 = 2000000000; //ns
-	__u64 TT2 = 1000000000; //ns
-	__u64 TT3 = 60000; //ns
+	struct mapval mv;
+	//__u64 mv_val; 
+	__u64 get_ns, *t_now;
+	__u64 TT1 = 2000000000; //ns -> 2 sec
+	__u64 TT2 = 1000000000; //ns -> 1 sec
+	__u64 TT3 = 2000000000; //ns
 	__u64 TF1 = 500;
-	__u64 TF2 = 60000;
-	__u32 dest_addr;
+	__u64 TF2 = 500;
+	__u64 prev_c = 0;
+	__u64 prev_dc = 0;
 
 	if (iph + 1 > data_end) {
 		return XDP_ABORTED;
@@ -69,110 +64,90 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	ka.daddr = iph->daddr;
 	//bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
-	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
-	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
-	c_get = bpf_map_lookup_elem(&counter_c, &ka);
+	__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
 	get_ns = bpf_ktime_get_ns();
 	t_now = &get_ns;
 
-	if(ts1_get && ts2_get && c_get && t_now) {
-		//if (ts1_get && ts2_get && c_get) {
-		//	bpf_printk("ts1_get:%llu, ts2_get:%llu\n, t_now:%llu\n", *ts1_get, *ts2_get, *t_now);
-		//	bpf_printk("diff_tnow2 %llu \n", *t_now-*ts2_get);
-		//}
-		if((*t_now-*ts2_get) > TT1) {
-			//bpf_printk("inside TT1 \n");
-			ts1_val = bpf_map_update_elem(&ts1, &ka, t_now, BPF_EXIST);
-        	        c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_EXIST);
-        	        dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_EXIST);
-        	        mark_val = bpf_map_update_elem(&mark, &ka, &one, BPF_EXIST);	
+	if(mv_get && t_now) {
+		mv.ts1 = *((__u64 *)mv_get);
+		mv.ts2 = *((__u64 *)mv_get +1);
+		mv.c = *((__u64 *)mv_get +2); 
+		mv.dc = *((__u64 *)mv_get +3); 
+		mv.mark = *((__u64 *)mv_get +4); 
+
+		prev_c = mv.c; // for star calculation
+		prev_dc = mv.dc; // for star calculation
+
+		if((*t_now-mv.ts2) > TT1) {
+			mv.ts1 = (__u64) *t_now;
+			mv.c = 0;
+			mv.dc = 0;
+			mv.mark = 1;
+		}
+
+	} else {
+		mv.ts1 = (__u64) *t_now;
+		mv.ts2 = (__u64) *t_now;
+		mv.c = 0;
+		mv.dc = 0;
+		mv.mark = 0;
+	}
+
+	mv.c = mv.c + 1;
+	mv.dc = mv.dc +1;
+	mv.ts2 = (__u64) *t_now;
+
+	//bpf_printk("DEBUG: ts1:%llu, ts2:%llu\n", mv.ts1, mv.ts2);
+	//bpf_printk("DEBUG: c:%lu, dc:%lu, mark:%u\n", mv.c, mv.dc, mv.mark);
+	//bpf_printk("size of %lu-byte\n", sizeof(maparr));
+	
+	__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
+	void *vp = mv_arr;
+
+	bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
+
+	if ((mv.ts2-mv.ts1) > TT2 ) { 
+		if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
+			bpf_printk("DROP HIGH! \n");
+			return XDP_DROP;
+			// Send an overload warning
+		}
+	}
+	
+	struct starval sv;
+	__u32 daddr_star = iph->daddr;
+	__u64 *sv_star = bpf_map_lookup_elem(&mapstar, &daddr_star);
+	if (sv_star) {
+		sv.ts1_min = *((__u64 *)sv_star);
+		sv.ts2_max = *((__u64 *)sv_star+1);
+		sv.cdc_star = *((__u64 *)sv_star+2);
+		if (mv.ts1 < sv.ts1_min) {
+			sv.ts1_min = mv.ts1;
+		}
+		if (mv.ts2 > sv.ts2_max) {
+			sv.ts2_max = mv.ts2;
+		}
+		if ((prev_c != 0) && (prev_dc != 0)) {
+			sv.cdc_star = sv.cdc_star-prev_c-prev_dc+mv.c+mv.dc;
 		}
 	} else {
-		ts1_val = bpf_map_update_elem(&ts1, &ka, t_now, BPF_ANY);
-                ts2_val = bpf_map_update_elem(&ts2, &ka, t_now, BPF_ANY);
-                c_val = bpf_map_update_elem(&counter_c, &ka, &zero, BPF_ANY);
-                dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &zero, BPF_ANY);
-                mark_val = bpf_map_update_elem(&mark, &ka, &zero, BPF_ANY);
+		sv.ts1_min = mv.ts1;
+		sv.ts2_max = mv.ts2;
+		sv.cdc_star = mv.c + mv.dc;
 	}
 
-	c_get = bpf_map_lookup_elem(&counter_c, &ka);
-	if (c_get) {
-		incr_c = (__u64) *c_get+one;
-		c_val = bpf_map_update_elem(&counter_c, &ka, &incr_c, BPF_EXIST);
-	}
-        dc_get = bpf_map_lookup_elem(&diffcount_dc, &ka);
-	if (dc_get) {
-		incr_dc = (__u64) *dc_get+one;
-		dc_val = bpf_map_update_elem(&diffcount_dc, &ka, &incr_dc, BPF_EXIST);
-	}
+	__u64 sv_arr[5] = {sv.ts1_min, sv.ts2_max, sv.cdc_star};
+	void *svv = sv_arr;
 
-        ts2_val = bpf_map_update_elem(&ts2, &ka, t_now, BPF_EXIST);
+	bpf_map_update_elem(&mapstar, &daddr_star, svv, BPF_ANY);
 
-	ts1_get = bpf_map_lookup_elem(&ts1, &ka);
-	ts2_get = bpf_map_lookup_elem(&ts2, &ka);
-
-	//if (ts1_get && ts2_get && c_get) {
-	//	bpf_printk("c_get:%llu, ts1_get:%llu, ts2_get:%llu\n", *c_get, *ts1_get, *ts2_get);
-	//	bpf_printk("diff_ts %llu \n", *ts2_get-*ts1_get);
-	//}
-
-	if (ts1_get && ts2_get && c_get) {
-		if ((*ts2_get-*ts1_get) > TT2 ) { 
-			if (((*c_get*1000000000)/(*ts2_get-*ts1_get)) > TF1) {
-				//bpf_printk("DROP! \n");
-				return XDP_DROP;
-				// Send an overload warning
-			}
+	if ((sv.ts2_max - sv.ts1_min) > TT3) {
+		if (((sv.cdc_star*1000000000) / (sv.ts2_max-sv.ts1_min)) > TF2) {
+			bpf_printk("DROP LOW! \n");
+			return XDP_DROP;
 		}
 	}
-
-	dest_addr = iph->daddr;
-	ts1_star_get = bpf_map_lookup_elem(&ts1_star, &dest_addr);
-	if (ts1_star_get && ts1_get) {
-		if (*ts1_get < *ts1_star_get) {
-			ts1_star_val = bpf_map_update_elem(&ts1_star, &dest_addr, ts1_get, BPF_EXIST);
-		}
-	} else {
-		if (ts1_get) {
-			ts1_star_val = bpf_map_update_elem(&ts1_star, &dest_addr, ts1_get, BPF_NOEXIST);
-		}
-	}
-
-	ts2_star_get = bpf_map_lookup_elem(&ts2_star, &dest_addr);
-	if (ts2_star_get && ts2_get) {
-		if (*ts2_get > *ts2_star_get) {
-			ts2_star_val = bpf_map_update_elem(&ts2_star, &dest_addr, ts2_get, BPF_EXIST);
-		}
-	} else {
-		if (ts2_get) {
-			ts2_star_val = bpf_map_update_elem(&ts2_star, &dest_addr, ts2_get, BPF_NOEXIST);
-		}
-	}
-
-	c_star_get = bpf_map_lookup_elem(&c_star, &dest_addr);
-	if (c_star_get && c_get && dc_get) {
-		incr_c_star = (__u64) *c_star_get + (__u64) *c_get + (__u64) *dc_get;
-		c_star_val = bpf_map_update_elem(&c_star, &dest_addr, &incr_c_star, BPF_EXIST);
-	} else {
-		if (c_get && dc_get) {
-			incr_c_star = (__u64) *c_get + (__u64) *dc_get;
-			c_star_val = bpf_map_update_elem(&c_star,&dest_addr, &incr_c_star, BPF_NOEXIST);
-		}
-	}
-
-	ts1_star_get = bpf_map_lookup_elem(&ts1_star, &dest_addr);
-	ts2_star_get = bpf_map_lookup_elem(&ts2_star, &dest_addr);
-	c_star_get = bpf_map_lookup_elem(&c_star, &dest_addr);
-
-	if (ts1_star_get && ts2_star_get && c_star_get) {
-		// bpf_printk("ts1_star: %llu, ts2_star: %llu, c_star: %llu", *ts1_star_get, *ts2_star_get, *c_star_get);
-		if (*ts2_star_get - *ts1_star_get > TT3) {
-			if ((*c_star_get/(*ts2_star_get-*ts1_star_get)) > TF2) {
-				return XDP_DROP;
-			}
-		}
-	}
-
+	
 	// remove tunnel header and forward packet
 	return XDP_PASS;
 }

@@ -28,26 +28,10 @@ struct bpf_map_def SEC("maps") mapall = {
         .map_flags   = BPF_F_NO_PREALLOC,
 };
 
-struct bpf_map_def SEC("maps") ts1_star = {
+struct bpf_map_def SEC("maps") mapstar = {
 	.type        = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size    = sizeof(__u32),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") ts2_star = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(__u32),
-	.value_size  = sizeof(__u64),
-	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
-};
-
-struct bpf_map_def SEC("maps") c_star = {
-	.type        = BPF_MAP_TYPE_PERCPU_HASH,
-	.key_size    = sizeof(__u32),
-	.value_size  = sizeof(__u64),
+	.value_size  = sizeof(stararr),
 	.max_entries = 10000,
         .map_flags   = BPF_F_NO_PREALLOC,
 };
