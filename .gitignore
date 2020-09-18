@@ -22,7 +22,7 @@ libbpf/src/build/
 src/xdp_loader
 src/xdp_stats
 src/trace_read
-src/krep_uspace
+src/xpro_uspace
 src/syncdb
 
 # tex related
