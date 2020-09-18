@@ -34,33 +34,6 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
-void *calculate_star(int map_fd) {
-	struct key_addr prev_key, key;
-
-	__u64 curr_ts1 = 0, ts1;
-	__u64 curr_ts2 = 0, ts2;
-	__u64 curr_cdc = 0, c, dc;
-	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
-		__u64 *retval[3];
-		bpf_map_lookup_elem(map_fd, &key, retval);
-		ts1 = *((__u64 *)retval);
-		if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
-			curr_ts1 = ts1;	
-		}
-		ts2 = *((__u64 *)retval+1); 
-		if (ts2 > curr_ts2) {
-			curr_ts2 = ts2;
-		}
-		c = *((__u64 *)retval+2); 
-		dc = *((__u64 *)retval+3);
-		curr_cdc = curr_cdc+c+dc;
-
-		printf("%llu %llu %llu \n", ts1, ts2, c, dc);
-		prev_key = key;
-	}
-	printf("done \n");
-}
-
 int main() {
 
 	setlocale(LC_NUMERIC, "en_US");
@@ -144,7 +117,31 @@ int main() {
 			return err_mapall;
 		}
 
-		calculate_star(mapall_fd);
+		struct key_addr key, next_key;
+		key.daddr = -1;
+		key.saddr = -1;
+		__u64 curr_ts1 = 0, ts1;
+		__u64 curr_ts2 = 0, ts2;
+		__u64 curr_cdc = 0, c, dc;
+		while(bpf_map_get_next_key(mapall_fd, &key, &next_key) == 0) {
+			__u64 *retval[3];
+			bpf_map_lookup_elem(mapall_fd, &key, retval);
+			ts1 = *((__u64 *)retval);
+			if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
+				curr_ts1 = ts1;	
+			}
+			ts2 = *((__u64 *)retval+1); 
+			if (ts2 > curr_ts2) {
+				curr_ts2 = ts2;
+			}
+			c = *((__u64 *)retval+2); 
+			dc = *((__u64 *)retval+3);
+			curr_cdc = curr_cdc+c+dc;
+
+			printf("%llu %llu %llu %llu \n", ts1, ts2, c, dc);
+			key = next_key;
+		}
+
 		close(mapall_fd);
 
 		len = sizeof(servaddr);
