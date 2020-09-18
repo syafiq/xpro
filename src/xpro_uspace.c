@@ -34,35 +34,31 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
-__u64 *calculate_star(int map_fd) {
-	struct key_addr key, next_key;
+void *calculate_star(int map_fd) {
+	struct key_addr prev_key, key;
 
 	__u64 curr_ts1 = 0, ts1;
 	__u64 curr_ts2 = 0, ts2;
 	__u64 curr_cdc = 0, c, dc;
-	__u64 *value_all = malloc(sizeof(__u64)*3);
-	while(bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
-		__u64 *retval = NULL;
-		int res = bpf_map_lookup_elem(map_fd, &key, retval);
-		if (res) {
-			ts1 = *((__u64 *)retval+1);
-			if (ts1 < curr_ts1) {
-				curr_ts1 = ts1;	
-			}
-			ts2 = *((__u64 *)retval+1); 
-			if (ts2 > curr_ts2) {
-				curr_ts2 = ts2;
-			}
-			c = *((__u64 *)retval+2); 
-			dc = *((__u64 *)retval+3);
-			curr_cdc = curr_cdc+c+dc;
-			key = next_key;
+	while(bpf_map_get_next_key(map_fd, &prev_key, &key) == 0) {
+		__u64 *retval[3];
+		bpf_map_lookup_elem(map_fd, &key, retval);
+		ts1 = *((__u64 *)retval);
+		if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
+			curr_ts1 = ts1;	
 		}
+		ts2 = *((__u64 *)retval+1); 
+		if (ts2 > curr_ts2) {
+			curr_ts2 = ts2;
+		}
+		c = *((__u64 *)retval+2); 
+		dc = *((__u64 *)retval+3);
+		curr_cdc = curr_cdc+c+dc;
+
+		printf("%llu %llu %llu \n", ts1, ts2, c, dc);
+		prev_key = key;
 	}
-	value_all[0] = curr_ts1;
-	value_all[1] = curr_ts2;
-	value_all[2] = curr_cdc;
-	return value_all;
+	printf("done \n");
 }
 
 int main() {
@@ -148,9 +144,9 @@ int main() {
 			return err_mapall;
 		}
 
-		__u64 *valmap = calculate_star(mapall_fd);
+		calculate_star(mapall_fd);
 		close(mapall_fd);
-		free(valmap);
+
 		len = sizeof(servaddr);
 		sendto(sock_serv, (const char *)buffer, strlen(buffer), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
