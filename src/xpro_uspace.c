@@ -34,6 +34,16 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
+void print_ip(unsigned int ip)
+{
+    unsigned char bytes[4];
+    bytes[3] = ip & 0xFF;
+    bytes[2] = (ip >> 8) & 0xFF;
+    bytes[1] = (ip >> 16) & 0xFF;
+    bytes[0] = (ip >> 24) & 0xFF;
+    printf("%d.%d.%d.%d\n", bytes[3], bytes[2], bytes[1], bytes[0]);
+}
+
 int main() {
 
 	setlocale(LC_NUMERIC, "en_US");
@@ -134,6 +144,8 @@ int main() {
 
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
 			bpf_map_lookup_elem(mapall_fd, &key, &retval);
+			print_ip(key.daddr);
+			printf("dest_inside %s \n", dest_inside);
 			ts1 = *((__u64 *)retval);
 			if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
 				curr_ts1 = ts1;	
