@@ -34,16 +34,6 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
-void print_ip(unsigned int ip)
-{
-    unsigned char bytes[4];
-    bytes[3] = ip & 0xFF;
-    bytes[2] = (ip >> 8) & 0xFF;
-    bytes[1] = (ip >> 16) & 0xFF;
-    bytes[0] = (ip >> 24) & 0xFF;
-    printf("%d.%d.%d.%d\n", bytes[3], bytes[2], bytes[1], bytes[0]);
-}
-
 int main() {
 
 	setlocale(LC_NUMERIC, "en_US");
@@ -105,6 +95,8 @@ int main() {
 	socklen_t len;
 	struct key_addr prev_key, key;
 	char *dest_inside, *msg_inside;
+	unsigned char bytes[4];
+	char charbuf[32];
 
 	while(1) {
 		len = sizeof(cliaddr);
@@ -143,25 +135,39 @@ int main() {
 		curr_cdc = 0;
 
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
-			bpf_map_lookup_elem(mapall_fd, &key, &retval);
-			print_ip(key.daddr);
-			printf("dest_inside %s \n", dest_inside);
-			ts1 = *((__u64 *)retval);
-			if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
-				curr_ts1 = ts1;	
+    			bytes[3] = key.daddr & 0xFF;
+    			bytes[2] = (key.daddr >> 8) & 0xFF;
+    			bytes[1] = (key.daddr >> 16) & 0xFF;
+    			bytes[0] = (key.daddr >> 24) & 0xFF;
+			snprintf(charbuf, sizeof(charbuf), "%d.%d.%d.%d", 
+					bytes[3], bytes[2], bytes[1], bytes[0]);
+			if (strcmp(charbuf, dest_inside) == 0) {
+				bpf_map_lookup_elem(mapall_fd, &key, &retval);
+
+				ts1 = *((__u64 *)retval);
+				if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
+					curr_ts1 = ts1;	
+				}
+				ts2 = *((__u64 *)retval+1); 
+				if (ts2 > curr_ts2) {
+					curr_ts2 = ts2;
+				}
+				c = *((__u64 *)retval+2); 
+				dc = *((__u64 *)retval+3);
+				curr_cdc = curr_cdc+c+dc;
 			}
-			ts2 = *((__u64 *)retval+1); 
-			if (ts2 > curr_ts2) {
-				curr_ts2 = ts2;
-			}
-			c = *((__u64 *)retval+2); 
-			dc = *((__u64 *)retval+3);
-			curr_cdc = curr_cdc+c+dc;
 			prev_key = key;
 		}
 		close(mapall_fd);
 		len = sizeof(servaddr);
-		sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
+
+		if (curr_ts2-curr_ts1 > TT3) {
+			if ((curr_cdc/ (curr_ts2-curr_ts1)) > TF2) {
+				// do nothing
+			}
+		} else {
+			sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
+		}
 	}
 }
