@@ -60,9 +60,6 @@ int main() {
 	proxaddr.sin_addr.s_addr = INADDR_ANY; 
 	proxaddr.sin_port = htons(PROXY_PORT); 
 
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = inet_addr("192.168.122.71");
-	servaddr.sin_port = htons(SERVER_PORT);
 	if ( bind(sockfd, (const struct sockaddr *)&proxaddr, sizeof(proxaddr)) < 0 ) { 
 	    	perror("bind failed"); 
 	    	exit(EXIT_FAILURE); 
@@ -97,13 +94,25 @@ int main() {
 	int n;
 	socklen_t len;
 	struct key_addr prev_key, key;
+	char *dest_inside, *msg_inside;
 
 	while(1) {
 		len = sizeof(cliaddr);
 		n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, 
 				(struct sockaddr *) &cliaddr, &len);
 		buffer[n] = '\0';
-		printf("buffer %s \n", buffer);
+
+		char *p = strtok(buffer, ",");
+		if(p)
+			dest_inside = p;
+		p = strtok(NULL, ",");
+		if (p)
+			msg_inside = p;
+
+		servaddr.sin_family = AF_INET;
+		servaddr.sin_addr.s_addr = inet_addr(dest_inside);
+		servaddr.sin_port = htons(SERVER_PORT);
+		
 		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 		if (mapall_fd < 0) {
 			return EXIT_FAIL_BPF;
@@ -140,7 +149,7 @@ int main() {
 		}
 		close(mapall_fd);
 		len = sizeof(servaddr);
-		sendto(sock_serv, (const char *)buffer, strlen(buffer), 
+		sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
 	}
 }
