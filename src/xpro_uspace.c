@@ -85,27 +85,25 @@ int main() {
 	};
 
 	struct bpf_map_info mapall_info = {0};
+
 	int mapall_fd;
 	int err_mapall;
-	mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
-	if (mapall_fd < 0) {
-		return EXIT_FAIL_BPF;
-	}
-	err_mapall = check_map_fd_info(&mapall_info, &map_expect);
-	if (err_mapall) {
-		fprintf(stderr, "ERR: map via FD not compatible\n");
-		close(mapall_fd);
-		return err_mapall;
-	}
+
+	__u64 retval[3];
+	__u64 curr_ts1 = 0, ts1;
+	__u64 curr_ts2 = 0, ts2;
+	__u64 curr_cdc = 0, c, dc;
+
+	int n;
+	socklen_t len;
+	struct key_addr prev_key, key;
 
 	while(1) {
-		int n;
-		socklen_t len;
 		len = sizeof(cliaddr);
 		n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, 
 				(struct sockaddr *) &cliaddr, &len);
 		buffer[n] = '\0';
-
+		printf("buffer %s \n", buffer);
 		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 		if (mapall_fd < 0) {
 			return EXIT_FAIL_BPF;
@@ -117,39 +115,30 @@ int main() {
 			return err_mapall;
 		}
 
-		struct key_addr prev_key, key;
+		prev_key.daddr = -1;
+		prev_key.saddr = -1;
 		key.daddr = -1;
 		key.saddr = -1;
-		__u64 curr_ts1 = 0, ts1;
-		__u64 curr_ts2 = 0, ts2;
-		__u64 curr_cdc = 0, c, dc;
-		printf("key.saddr %u key.daddr %u \n", key.saddr, key.daddr);
+		curr_ts1 = 0;
+		curr_ts2 = 0;
+		curr_cdc = 0;
+
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
-			prev_key=key;
-			printf("key.saddr %u key.daddr %u \n", key.saddr, key.daddr);
+			bpf_map_lookup_elem(mapall_fd, &key, &retval);
+			ts1 = *((__u64 *)retval);
+			if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
+				curr_ts1 = ts1;	
+			}
+			ts2 = *((__u64 *)retval+1); 
+			if (ts2 > curr_ts2) {
+				curr_ts2 = ts2;
+			}
+			c = *((__u64 *)retval+2); 
+			dc = *((__u64 *)retval+3);
+			curr_cdc = curr_cdc+c+dc;
+			prev_key = key;
 		}
-		printf("done \n");
-		//while(bpf_map_get_next_key(mapall_fd, &key, &next_key) == 0) {
-		//	__u64 *retval[3];
-		//	bpf_map_lookup_elem(mapall_fd, &key, retval);
-		//	ts1 = *((__u64 *)retval);
-		//	if ((ts1 < curr_ts1) || (curr_ts1 == 0)) {
-		//		curr_ts1 = ts1;	
-		//	}
-		//	ts2 = *((__u64 *)retval+1); 
-		//	if (ts2 > curr_ts2) {
-		//		curr_ts2 = ts2;
-		//	}
-		//	c = *((__u64 *)retval+2); 
-		//	dc = *((__u64 *)retval+3);
-		//	curr_cdc = curr_cdc+c+dc;
-
-		//	printf("%llu %llu %llu %llu \n", ts1, ts2, c, dc);
-		//	key = next_key;
-		//}
-
 		close(mapall_fd);
-
 		len = sizeof(servaddr);
 		sendto(sock_serv, (const char *)buffer, strlen(buffer), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
