@@ -24,6 +24,7 @@ src/xdp_stats
 src/trace_read
 src/xpro_uspace
 src/syncdb
+src/sync
 
 # tex related
 *.log
