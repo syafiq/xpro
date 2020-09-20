@@ -68,7 +68,6 @@ int main()
 
         int mapall_fd;
         int err_mapall;
-	__u64 retval[3];
 
 	struct key_addr ka;
 	char *p;
@@ -77,6 +76,7 @@ int main()
 	__u64 now_since_epoch;
 	__u64 ts1_get, ts2_get, c_get, dc_get, mark_get, ts1_sync, ts2_sync;
 	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
+	__u64 retval[3];
 
 	redisContext *c_m = redisConnect("192.168.122.99", 6379);
 	redisReply *reply_m;
@@ -115,6 +115,7 @@ int main()
                         close(mapall_fd);
                         return err_mapall;
                 }
+		close(mapall_fd);
 
 		// 1. first we should send W (load) to M_db
 		// 2. receive W value of all other proxies from M_db
@@ -173,12 +174,9 @@ int main()
 
 					mark_l = 0;
 					dc_l = 0;
-					rset_m = redisCommand(c_m, "HSET %s ts1 %s", idaddr,
-						 ts1_sync);
-					rset_m = redisCommand(c_m, "HSET %s ts2 %s", idaddr,
-						 ts2_sync);
-					rset_m = redisCommand(c_m, "HSET %s c %s", idaddr,
-						 c_get);
+					rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
+					rset_m = redisCommand(c_m, "HSET %s ts2 %llu", idaddr, ts2_sync);
+					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_get);
 				} else 
 				{
 					/* else 
@@ -203,8 +201,8 @@ int main()
 						ts1_l = ts2_sync-((ts2_sync-atoi(tr_m->element[1]->str))/r);
 						rset_m = redisCommand(c_m, "HSET %s c %d", idaddr,
 							 floor(atoi(tr_m->element[5]->str)/r));
-						rset_m = redisCommand(c_m, "HSET %s ts1 %s", idaddr, ts1_sync);
-						rset_m = redisCommand(c_m, "HSET %s ts2 %s", idaddr, ts2_sync);
+						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
+						rset_m = redisCommand(c_m, "HSET %s ts2 %llu", idaddr, ts2_sync);
 					} else
 					{
 						rset_m = redisCommand(c_m, "HSET %s ts2 %s", idaddr, ts2_sync);
@@ -226,7 +224,7 @@ int main()
 						
 					} else if (ts2_sync-ts1_sync > TT4)
 					{
-						rset_m = redisCommand(c_m, "HSET %s ts1 %s", idaddr, ts1_sync);
+						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
 					}
 					c_l = atoi(tr_m->element[5]->str) + dc_get;
 					rset_m = redisCommand(c_m, "HSET %s c %s", idaddr, c_l);
@@ -248,10 +246,10 @@ int main()
 				dc_l = 0;
 				mark_l = 0;
 			}
+			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
+			vp = mv_arr;
+			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 		}
-		__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
-		vp = mv_arr;
-		bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 
 		/*
 		 * for each (i, D_addr) in M_db
@@ -260,7 +258,29 @@ int main()
 		 * 		ts2 = ts2'
 		 * 		c = c'
 		 * */
+                prev_key.daddr = -1;
+                prev_key.saddr = -1;
+                key.daddr = -1;
+                key.saddr = -1;
+
+		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
+		if (mapall_fd < 0) {
+                        return EXIT_FAIL_BPF;
+                }
+                err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+                if (err_mapall) {
+                        printf("ERR: map via FD not compatible\n");
+                        close(mapall_fd);
+                        return err_mapall;
+                }
+
+                prev_key.daddr = -1;
+                prev_key.saddr = -1;
+                key.daddr = -1;
+                key.saddr = -1;
+
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
+			printf("s: %u, d:%u \n",key.saddr, key.daddr);
                         bytes_d[3] = key.daddr & 0xFF;
                         bytes_d[2] = (key.daddr >> 8) & 0xFF;
                         bytes_d[1] = (key.daddr >> 16) & 0xFF;
@@ -274,19 +294,21 @@ int main()
 			snprintf(charbuf, sizeof(charbuf), "%d.%d.%d.%d,%d.%d.%d.%d", 
 					bytes_s[3], bytes_s[2], bytes_s[1], bytes_s[0],
 					bytes_d[3], bytes_d[2], bytes_d[1], bytes_d[0]);
-			if (redisCommand(c_m,"EXISTS %s", charbuf) == 0) {
+			rset_m = redisCommand(c_m,"EXISTS %s", charbuf);
+			if (rset_m->integer == 0) {
 				bpf_map_lookup_elem(mapall_fd, &key, &retval);
 				ts1 = *((__u64 *)retval);
 				ts2 = *((__u64 *)retval+1);
 				c = *((__u64 *)retval+2);
-				rset_m = redisCommand(c_m, "HSET %s ts1 %s", charbuf, ts1);
-				rset_m = redisCommand(c_m, "HSET %s ts2 %s", charbuf, ts2);
-				rset_m = redisCommand(c_m, "HSET %s c %s", charbuf, c);
+				rset_m = redisCommand(c_m, "HSET %s ts1 %llu", charbuf, ts1);
+				rset_m = redisCommand(c_m, "HSET %s ts2 %llu", charbuf, ts2);
+				rset_m = redisCommand(c_m, "HSET %s c %llu", charbuf, c);
 			}
+			prev_key = key;
 		}
 		close(mapall_fd);
-		freeReplyObject(rset_m);
-		freeReplyObject(reply_m);
+		//freeReplyObject(rset_m);
+		//freeReplyObject(reply_m);
 		sleep(10);
 	}
 }
