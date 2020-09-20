@@ -93,10 +93,11 @@ int main()
 
 	int TT1, TT4, r;
 	char *idaddr, *idaddr_proc;
-	uint32_t i, no_elmt_m;
+	uint32_t i;
 	redisReply *tr_m; // temporary reply pointer M and L
 	redisReply *rset_m;
 	redisReply *reply_m;
+	redisReply *size_m;
 	void *vp;
 	struct key_addr prev_key, key;
 	unsigned char bytes_s[4], bytes_d[4];
@@ -119,14 +120,13 @@ int main()
 
 		// 1. first we should send W (load) to M_db
 		// 2. receive W value of all other proxies from M_db
-		reply_m = redisCommand(c_m, "SCAN 0");
+		size_m = redisCommand(c_m, "DBSIZE");
+		reply_m = redisCommand(c_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
 		TT1 = 60000;
 		TT4 = 60000;
 		r= 60000;
 
-		no_elmt_m = reply_m->element[1]->elements;
-		for (i=0; i<no_elmt_m; i++)
-		{
+		for (i=0; i < size_m->integer; i++) {
 			/*
 			 * for each (i, D_addr) in M_db
 			 * */
@@ -248,6 +248,7 @@ int main()
 				c_l = (__u64) atoi(tr_m->element[5]->str);
 				dc_l = 0;
 				mark_l = 0;
+				printf("ts1_l %llu \n", ts1_l);
 			}
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
