@@ -79,7 +79,6 @@ int main()
 	__u64 retval[3];
 
 	redisContext *c_m = redisConnect("192.168.122.99", 6379);
-	redisReply *reply_m;
 
 	if (c_m == NULL || c_m->err) 
 	{
@@ -93,10 +92,11 @@ int main()
 	}
 
 	int TT1, TT4, r;
-	char *idaddr;
+	char *idaddr, *idaddr_proc;
 	uint32_t i, no_elmt_m;
 	redisReply *tr_m; // temporary reply pointer M and L
 	redisReply *rset_m;
+	redisReply *reply_m;
 	void *vp;
 	struct key_addr prev_key, key;
 	unsigned char bytes_s[4], bytes_d[4];
@@ -132,7 +132,9 @@ int main()
 			 * */
 
 			idaddr = reply_m->element[1]->element[i]->str;
-			p = strtok(idaddr, ",");
+			idaddr_proc = calloc(strlen(idaddr)+1, sizeof(char));
+			strcpy(idaddr_proc, idaddr);
+			p = strtok(idaddr_proc, ",");
 			if (p) {
 				ka.saddr = (__u64) atoi(p);
 			}
@@ -140,8 +142,11 @@ int main()
 			if (p) {
 				ka.daddr = (__u64) atoi(p);
 			}
+			free(idaddr_proc);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
-			if (res > 0) 
+			tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
+			
+			if (res == 0) 
 			{
 				/*
 				 * if i,D_addr in L_db
@@ -157,8 +162,6 @@ int main()
 				now_since_epoch = epoch_nsecs();
 				ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
 				ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
-
-				tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
 
 				if ((mark_get == 1) && 
 				(ts1_sync-atoi(tr_m->element[1]->str) > TT1))
@@ -280,7 +283,6 @@ int main()
                 key.saddr = -1;
 
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
-			printf("s: %u, d:%u \n",key.saddr, key.daddr);
                         bytes_d[3] = key.daddr & 0xFF;
                         bytes_d[2] = (key.daddr >> 8) & 0xFF;
                         bytes_d[1] = (key.daddr >> 16) & 0xFF;
@@ -307,8 +309,9 @@ int main()
 			prev_key = key;
 		}
 		close(mapall_fd);
-		//freeReplyObject(rset_m);
-		//freeReplyObject(reply_m);
-		sleep(10);
+		freeReplyObject(rset_m);
+		freeReplyObject(reply_m);
+
+		sleep(3);
 	}
 }
