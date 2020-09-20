@@ -78,7 +78,7 @@ int main()
 	__u64 ts1_get, ts2_get, c_get, dc_get, mark_get, ts1_sync, ts2_sync;
 	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 
-	redisContext *c_m = redisConnect("192.168.122.79", 6379);
+	redisContext *c_m = redisConnect("192.168.122.99", 6379);
 	redisReply *reply_m;
 
 	if (c_m == NULL || c_m->err) 
