@@ -253,6 +253,7 @@ int main()
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
 			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
+			freeReplyObject(tr_m);
 		}
 
 		/*
