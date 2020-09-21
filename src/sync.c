@@ -110,9 +110,9 @@ int main()
 		// 2. receive W value of all other proxies from M_db
 		size_m = redisCommand(c_m, "DBSIZE");
 		reply_m = redisCommand(c_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
-		TT1 = 60000;
-		TT4 = 60000;
-		r= 60000;
+		TT1 = 2000000000;
+		TT4 = 2000000000;
+		r= 6;
 		res = -1;
 
 		for (i=0; i < size_m->integer; i++) {
