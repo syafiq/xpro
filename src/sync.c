@@ -164,7 +164,7 @@ int main()
 				ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
 
 				if ((mark_get == 1) && 
-				(ts1_sync-atoi(tr_m->element[1]->str) > TT1))
+				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
 				{ 
 					/*
 					 * if mark'=1 and ts1'-ts1>TT1
@@ -196,14 +196,14 @@ int main()
 					 * */
 
 					mark_l = 0;
-					if(ts2_sync < atoi(tr_m->element[3]->str))
+					if(ts2_sync < (__u64)atoi(tr_m->element[3]->str))
 					{
 						ts2_l = (__u64) atoi(tr_m->element[3]->str);
-					} else if (ts2_sync-atoi(tr_m->element[1]->str) > TT4) 
+					} else if (ts2_sync-(__u64)atoi(tr_m->element[1]->str) > TT4) 
 					{
-						ts1_l = ts2_sync-((ts2_sync-atoi(tr_m->element[1]->str))/r);
+						ts1_l = ts2_sync-((ts2_sync-(__u64) atoi(tr_m->element[1]->str))/r);
 						rset_m = redisCommand(c_m, "HSET %s c %d", idaddr,
-							 floor(atoi(tr_m->element[5]->str)/r));
+							 floor((__u64)atoi(tr_m->element[5]->str)/r));
 						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
 						rset_m = redisCommand(c_m, "HSET %s ts2 %llu", idaddr, ts2_sync);
 					} else
@@ -221,15 +221,15 @@ int main()
 					 * dc' = 0
 					 * */
 
-					if(ts1_sync > atoi(tr_m->element[1]->str))
+					if(ts1_sync > (__u64)atoi(tr_m->element[1]->str))
 					{
-						ts1_l = (__u64) atoi(tr_m->element[1]->str);
+						ts1_l = (__u64)atoi(tr_m->element[1]->str);
 						
 					} else if (ts2_sync-ts1_sync > TT4)
 					{
 						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
 					}
-					c_l = atoi(tr_m->element[5]->str) + dc_get;
+					c_l = (__u64) atoi(tr_m->element[5]->str) + dc_get;
 					rset_m = redisCommand(c_m, "HSET %s c %s", idaddr, c_l);
 					dc_l = 0;
 				}
@@ -248,8 +248,10 @@ int main()
 				c_l = (__u64) atoi(tr_m->element[5]->str);
 				dc_l = 0;
 				mark_l = 0;
-				printf("ts1_l %llu \n", ts1_l);
 			}
+			ts1_l = ts1_l-(now_since_epoch-now_since_boot);
+			ts2_l = ts2_l-(now_since_epoch-now_since_boot);
+
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
 			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
@@ -304,6 +306,8 @@ int main()
 				ts1 = *((__u64 *)retval);
 				ts2 = *((__u64 *)retval+1);
 				c = *((__u64 *)retval+2);
+				ts1 = now_since_epoch-(now_since_boot-ts1);
+				ts2 = now_since_epoch-(now_since_boot-ts2);
 				rset_m = redisCommand(c_m, "HSET %s ts1 %llu", charbuf, ts1);
 				rset_m = redisCommand(c_m, "HSET %s ts2 %llu", charbuf, ts2);
 				rset_m = redisCommand(c_m, "HSET %s c %llu", charbuf, c);
