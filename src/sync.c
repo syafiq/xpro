@@ -100,8 +100,8 @@ int main()
 	redisReply *size_m;
 	void *vp;
 	struct key_addr prev_key, key;
-	unsigned char bytes_s[4], bytes_d[4];
-	char charbuf[32];
+	char bytes_s[INET_ADDRSTRLEN], bytes_d[INET_ADDRSTRLEN];
+	char charbuf[INET_ADDRSTRLEN+INET_ADDRSTRLEN+1];
 	__u64 ts1, ts2, c;
 
 	while(1) 
@@ -136,16 +136,19 @@ int main()
 			strcpy(idaddr_proc, idaddr);
 			p = strtok(idaddr_proc, ",");
 			if (p) {
-				ka.saddr = (__u64) atoi(p);
+				inet_pton(AF_INET, p, &ka.saddr);
 			}
 			p = strtok(NULL, ",");
 			if (p) {
-				ka.daddr = (__u64) atoi(p);
+				inet_pton(AF_INET, p, &ka.daddr);
 			}
 			free(idaddr_proc);
+			printf("ka.saddr %u ka.daddr %u idaddr %s \n", ka.saddr, ka.daddr, idaddr);
+			
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
-			
+
+			printf("res %d \n", res);
 			if (res == 0) 
 			{
 				/*
@@ -162,6 +165,7 @@ int main()
 				now_since_epoch = epoch_nsecs();
 				ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
 				ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
+				printf("ts1_sync %llu ts2_sync %llu \n", ts1_sync, ts2_sync);
 
 				if ((mark_get == 1) && 
 				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
@@ -251,10 +255,10 @@ int main()
 			}
 			ts1_l = ts1_l-(now_since_epoch-now_since_boot);
 			ts2_l = ts2_l-(now_since_epoch-now_since_boot);
-
+			
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
-			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
+			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_NOEXIST);
 			freeReplyObject(tr_m);
 		}
 
@@ -287,19 +291,11 @@ int main()
                 key.saddr = -1;
 
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
-                        bytes_d[3] = key.daddr & 0xFF;
-                        bytes_d[2] = (key.daddr >> 8) & 0xFF;
-                        bytes_d[1] = (key.daddr >> 16) & 0xFF;
-                        bytes_d[0] = (key.daddr >> 24) & 0xFF;
-                       
-		       	bytes_s[3] = key.saddr & 0xFF;
-                        bytes_s[2] = (key.saddr >> 8) & 0xFF;
-                        bytes_s[1] = (key.saddr >> 16) & 0xFF;
-                        bytes_s[0] = (key.saddr >> 24) & 0xFF;
+			inet_ntop(AF_INET, &(key.saddr), bytes_s, INET_ADDRSTRLEN);
+			inet_ntop(AF_INET, &(key.daddr), bytes_d, INET_ADDRSTRLEN);
+			printf("%s %s \n", bytes_s, bytes_d);
+			snprintf(charbuf, sizeof(charbuf), "%s,%s", bytes_s, bytes_d);
 
-			snprintf(charbuf, sizeof(charbuf), "%d.%d.%d.%d,%d.%d.%d.%d", 
-					bytes_s[3], bytes_s[2], bytes_s[1], bytes_s[0],
-					bytes_d[3], bytes_d[2], bytes_d[1], bytes_d[0]);
 			rset_m = redisCommand(c_m,"EXISTS %s", charbuf);
 			if (rset_m->integer == 0) {
 				bpf_map_lookup_elem(mapall_fd, &key, &retval);
