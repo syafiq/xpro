@@ -106,18 +106,6 @@ int main()
 
 	while(1) 
 	{
-		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
-		if (mapall_fd < 0) {
-                        return EXIT_FAIL_BPF;
-                }
-                err_mapall = check_map_fd_info(&mapall_info, &map_expect);
-                if (err_mapall) {
-                        printf("ERR: map via FD not compatible\n");
-                        close(mapall_fd);
-                        return err_mapall;
-                }
-		close(mapall_fd);
-
 		// 1. first we should send W (load) to M_db
 		// 2. receive W value of all other proxies from M_db
 		size_m = redisCommand(c_m, "DBSIZE");
@@ -125,6 +113,7 @@ int main()
 		TT1 = 60000;
 		TT4 = 60000;
 		r= 60000;
+		res = -1;
 
 		for (i=0; i < size_m->integer; i++) {
 			/*
@@ -143,12 +132,21 @@ int main()
 				inet_pton(AF_INET, p, &ka.daddr);
 			}
 			free(idaddr_proc);
-			printf("ka.saddr %u ka.daddr %u idaddr %s \n", ka.saddr, ka.daddr, idaddr);
 			
+			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
+			if (mapall_fd < 0) {
+                	        return EXIT_FAIL_BPF;
+                	}
+                	err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+                	if (err_mapall) {
+                	        printf("ERR: map via FD not compatible\n");
+                	        close(mapall_fd);
+                	        return err_mapall;
+                	}
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
+			close(mapall_fd);
 			tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
 
-			printf("res %d \n", res);
 			if (res == 0) 
 			{
 				/*
@@ -165,7 +163,6 @@ int main()
 				now_since_epoch = epoch_nsecs();
 				ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
 				ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
-				printf("ts1_sync %llu ts2_sync %llu \n", ts1_sync, ts2_sync);
 
 				if ((mark_get == 1) && 
 				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
@@ -293,7 +290,6 @@ int main()
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
 			inet_ntop(AF_INET, &(key.saddr), bytes_s, INET_ADDRSTRLEN);
 			inet_ntop(AF_INET, &(key.daddr), bytes_d, INET_ADDRSTRLEN);
-			printf("%s %s \n", bytes_s, bytes_d);
 			snprintf(charbuf, sizeof(charbuf), "%s,%s", bytes_s, bytes_d);
 
 			rset_m = redisCommand(c_m,"EXISTS %s", charbuf);
