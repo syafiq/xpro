@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <math.h>
 
 #include <bpf/bpf.h>
 #include <net/if.h>
@@ -99,13 +100,13 @@ int main() {
 	int mapall_fd;
 	int err_mapall;
 
-	__u64 now_since_epoch;
+	__u64 now_since_epoch, blocked_since_epoch;
 	__u64 retval[3];
 	__u64 curr_ts1 = 0, ts1;
 	__u64 curr_ts2 = 0, ts2;
 	__u64 curr_cdc = 0, c, dc;
 	__u64 TT3 = 1000000000;
-	__u64 TF2 = 50;
+	__u64 TF2 = 100;
 	int n;
 	socklen_t len;
 	struct key_addr prev_key, key, ka;
@@ -126,6 +127,7 @@ int main() {
 	while(1) {
 		res = -1;
 		now_since_epoch = epoch_nsecs();
+		printf("time_now %llu \n", now_since_epoch);
 		len = sizeof(cliaddr);
 		n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, 
 				(struct sockaddr *) &cliaddr, &len);
@@ -228,9 +230,14 @@ int main() {
 		close(mapall_fd);
 		len = sizeof(servaddr);
 
+		//printf("ts2-ts1 %llu \n", curr_ts2-curr_ts1);
+		//printf("curr_cdc %llu \n", curr_cdc);
 		if (curr_ts2-curr_ts1 > TT3) {
-			if ((curr_cdc/ (curr_ts2-curr_ts1)) > TF2) {
-				// do nothing
+			printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
+			if (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2) {
+				blocked_since_epoch = epoch_nsecs();
+				printf("blocked_since_epoch %llu \n", blocked_since_epoch);
+				;
 			}
 		} else {
 			sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
