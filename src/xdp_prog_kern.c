@@ -96,14 +96,14 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 		mv.dc = mv.dc +1;
 		mv.ts2 = (__u64) *t_now;
 
-		//bpf_printk("DEBUG: ts1:%llu, ts2:%llu\n", mv.ts1, mv.ts2);
-		//bpf_printk("DEBUG: c:%lu, dc:%lu, mark:%u\n", mv.c, mv.dc, mv.mark);
+		bpf_printk("DEBUG: ts1:%llu, ts2:%llu\n", mv.ts1, mv.ts2);
+		bpf_printk("DEBUG: c:%lu, dc:%lu, mark:%u\n", mv.c, mv.dc, mv.mark);
 		//bpf_printk("size of %lu-byte\n", sizeof(maparr));
 		
-		__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
-		void *vp = mv_arr;
+		//__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
+		//void *vp = mv_arr;
 
-		bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
+		//bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
 		if ((mv.ts2-mv.ts1) > TT2 ) { 
 			if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
 				bpf_printk("DROP HIGH! \n");
