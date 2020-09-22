@@ -318,6 +318,6 @@ int main()
 		freeReplyObject(reply_m);
 
 		redisFree(c_m);
-		sleep(3);
+		sleep(1);
 	}
 }
