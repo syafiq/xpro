@@ -79,18 +79,6 @@ int main()
 	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 	__u64 retval[3];
 
-	redisContext *c_m = redisConnect("192.168.100.99", 6379);
-
-	if (c_m == NULL || c_m->err) 
-	{
-		if (c_m) 
-		{
-			printf("Error: %s\n", c_m->errstr);
-		} else 
-		{
-			printf("Can't allocate redis context\n");
-		}
-	}
 
 	int TT1, TT4, r;
 	char *idaddr, *idaddr_proc;
@@ -107,6 +95,19 @@ int main()
 
 	while(1) 
 	{
+		redisContext *c_m = redisConnect("192.168.100.99", 6379);
+
+		if (c_m == NULL || c_m->err) 
+		{
+			if (c_m) 
+			{
+				printf("Error: %s\n", c_m->errstr);
+			} else 
+			{
+				printf("Can't allocate redis context\n");
+			}
+		}
+
 		// 1. first we should send W (load) to M_db
 		// 2. receive W value of all other proxies from M_db
 		size_m = redisCommand(c_m, "DBSIZE");
@@ -148,8 +149,7 @@ int main()
 			close(mapall_fd);
 			tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
 
-			if (res == 0) 
-			{
+			if (res == 0) {
 				/*
 				 * if i,D_addr in L_db
 				 * */
@@ -170,6 +170,7 @@ int main()
 				if ((mark_get == 1) && 
 				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
 				{ 
+					printf("markget 1 \n");
 					/*
 					 * if mark'=1 and ts1'-ts1>TT1
 					 * 	mark' = 0
@@ -186,6 +187,7 @@ int main()
 					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_get);
 				} else 
 				{
+					printf("else \n");
 					/* else 
 					 * 	mark' = 0
 					 * 	if ts2' < ts2
@@ -240,6 +242,7 @@ int main()
 				freeReplyObject(rset_m);
 			} else 
 			{
+				printf("else luar \n");
 				/*
 				 * ts1' = ts1
 				 * ts2' = ts2
@@ -314,6 +317,7 @@ int main()
 		close(mapall_fd);
 		freeReplyObject(reply_m);
 
+		redisFree(c_m);
 		sleep(3);
 	}
 }
