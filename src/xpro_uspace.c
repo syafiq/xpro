@@ -23,6 +23,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <inttypes.h>
+#define BILLION  1000000000L
 
 #define PROXY_PORT 5683
 #define SERVER_PORT 5683
@@ -33,6 +34,18 @@ const char *pin_basedir = "/sys/fs/bpf";
 #ifndef PATH_MAX
 #define PATH_MAX  4096
 #endif
+
+static unsigned long epoch_nsecs(void) {
+  long int ns;
+    time_t sec;
+    struct timespec spec;
+
+    clock_gettime(CLOCK_REALTIME, &spec);
+    sec = spec.tv_sec;
+    ns = spec.tv_nsec;
+
+    return (uint64_t) sec * BILLION + (uint64_t) ns;
+}
 
 int main() {
 
@@ -86,6 +99,7 @@ int main() {
 	int mapall_fd;
 	int err_mapall;
 
+	__u64 now_since_epoch;
 	__u64 retval[3];
 	__u64 curr_ts1 = 0, ts1;
 	__u64 curr_ts2 = 0, ts2;
@@ -94,20 +108,37 @@ int main() {
 	__u64 TF2 = 50;
 	int n;
 	socklen_t len;
-	struct key_addr prev_key, key;
+	struct key_addr prev_key, key, ka;
 	char *dest_inside, *msg_inside;
 	unsigned char bytes[4];
 	char charbuf[32];
+	struct mapval mv;
+	__u64 mv_get[5];
+	int res;
+        __u64 TT1 = 2000000000; //ns -> 2 sec
+        //__u64 TT2 = 1000000000; //ns -> 1 sec
+        //__u64 TT3 = 2000000000; //ns
+        //__u64 TF1 = 500;
+        //__u64 TF2 = 500;
+	void *vp;
+	__u64 mv_arr[5];
 
 	while(1) {
+		res = -1;
+		now_since_epoch = epoch_nsecs();
 		len = sizeof(cliaddr);
 		n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, 
 				(struct sockaddr *) &cliaddr, &len);
 		buffer[n] = '\0';
+		//printf("ka.saddr %d \n", cliaddr.sin_addr.s_addr);
+		ka.saddr = cliaddr.sin_addr.s_addr;
 
 		char *p = strtok(buffer, ",");
-		if(p)
+		if(p) {
 			dest_inside = p;
+			inet_pton(AF_INET, dest_inside, &ka.daddr);
+			//printf("ka.daddr %u \n", ka.daddr);
+		}
 		p = strtok(NULL, ",");
 		if (p)
 			msg_inside = p;
@@ -126,6 +157,41 @@ int main() {
 			close(mapall_fd);
 			return err_mapall;
 		}
+		res = bpf_map_lookup_elem(mapall_fd, &ka, &mv_get);
+
+		if (res == 0) {
+			mv.ts1 = *((__u64 *)mv_get);
+                	mv.ts2 = *((__u64 *)mv_get +1);
+                	mv.c = *((__u64 *)mv_get +2);
+                	mv.dc = *((__u64 *)mv_get +3);
+                	mv.mark = *((__u64 *)mv_get +4);
+
+			if(now_since_epoch-mv.ts2 > TT1) {
+			        mv.ts1 = now_since_epoch;
+                                mv.c = 0;
+                                mv.dc = 0;
+                                mv.mark = 1;	
+			}
+		} else {
+                        mv.ts1 = now_since_epoch;
+                        mv.ts2 = now_since_epoch;
+                        mv.c = 0;
+                        mv.dc = 0;
+                        mv.mark = 0;
+		}
+
+                mv.c = mv.c + 1;
+                mv.dc = mv.dc +1;
+                mv.ts2 = now_since_epoch;
+
+		mv_arr[0] = mv.ts1;
+		mv_arr[1] = mv.ts2;
+		mv_arr[2] = mv.c;
+		mv_arr[3] = mv.dc;
+		mv_arr[4] = mv.mark;
+		
+		vp = mv_arr;
+		bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 
 		prev_key.daddr = -1;
 		prev_key.saddr = -1;
