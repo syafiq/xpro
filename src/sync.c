@@ -78,7 +78,7 @@ int main()
 	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 	__u64 retval[3];
 
-	redisContext *c_m = redisConnect("192.168.122.99", 6379);
+	redisContext *c_m = redisConnect("192.168.100.99", 6379);
 
 	if (c_m == NULL || c_m->err) 
 	{
