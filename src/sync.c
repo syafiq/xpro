@@ -31,24 +31,24 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
-static unsigned long get_nsecs(void) {
-  struct timespec ts;
-
-      clock_gettime(CLOCK_MONOTONIC, &ts);
-      return ts.tv_sec * 1000000000UL + ts.tv_nsec;
-}
-
-static unsigned long epoch_nsecs(void) {
-  long int ns;
-    time_t sec;
-    struct timespec spec;
-
-    clock_gettime(CLOCK_REALTIME, &spec);
-    sec = spec.tv_sec;
-    ns = spec.tv_nsec;
-
-    return (uint64_t) sec * BILLION + (uint64_t) ns;
-}
+//static unsigned long get_nsecs(void) {
+//  struct timespec ts;
+//
+//      clock_gettime(CLOCK_MONOTONIC, &ts);
+//      return ts.tv_sec * 1000000000UL + ts.tv_nsec;
+//}
+//
+//static unsigned long epoch_nsecs(void) {
+//  long int ns;
+//    time_t sec;
+//    struct timespec spec;
+//
+//    clock_gettime(CLOCK_REALTIME, &spec);
+//    sec = spec.tv_sec;
+//    ns = spec.tv_nsec;
+//
+//    return (uint64_t) sec * BILLION + (uint64_t) ns;
+//}
 
 int main() 
 {
@@ -72,9 +72,10 @@ int main()
 	struct key_addr ka;
 	char *p;
 	int res;
-	__u64 now_since_boot;
-	__u64 now_since_epoch;
-	__u64 ts1_get, ts2_get, c_get, dc_get, mark_get, ts1_sync, ts2_sync;
+	//__u64 now_since_boot;
+	//__u64 now_since_epoch;
+	//__u64 ts1_get, ts2_get, c_get, dc_get, mark_get, ts1_sync, ts2_sync;
+	__u64 c_get, dc_get, mark_get, ts1_sync, ts2_sync;
 	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 	__u64 retval[3];
 
@@ -153,16 +154,18 @@ int main()
 				 * if i,D_addr in L_db
 				 * */
 
-				ts1_get = *((__u64 *)retval);
-				ts2_get = *((__u64 *)retval+1);
+				ts1_sync = *((__u64 *)retval);
+				ts2_sync = *((__u64 *)retval+1);
 				c_get = *((__u64 *)retval+2);
 				dc_get = *((__u64 *)retval+3);
 				mark_get = *((__u64 *)retval+4);
 
-				now_since_boot = get_nsecs();
-				now_since_epoch = epoch_nsecs();
-				ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
-				ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
+				//now_since_boot = get_nsecs();
+				//now_since_epoch = epoch_nsecs();
+				//ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
+				//ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
+				//ts1_sync = ts1_get;
+				//ts2_sync = ts2_get;
 
 				if ((mark_get == 1) && 
 				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
@@ -234,6 +237,7 @@ int main()
 					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_l);
 					dc_l = 0;
 				}
+				freeReplyObject(rset_m);
 			} else 
 			{
 				/*
@@ -250,8 +254,8 @@ int main()
 				dc_l = 0;
 				mark_l = 0;
 			}
-			ts1_l = ts1_l-(now_since_epoch-now_since_boot);
-			ts2_l = ts2_l-(now_since_epoch-now_since_boot);
+			//ts1_l = ts1_l-(now_since_epoch-now_since_boot);
+			//ts2_l = ts2_l-(now_since_epoch-now_since_boot);
 			
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
@@ -298,16 +302,16 @@ int main()
 				ts1 = *((__u64 *)retval);
 				ts2 = *((__u64 *)retval+1);
 				c = *((__u64 *)retval+2);
-				ts1 = now_since_epoch-(now_since_boot-ts1);
-				ts2 = now_since_epoch-(now_since_boot-ts2);
+				//ts1 = now_since_epoch-(now_since_boot-ts1);
+				//ts2 = now_since_epoch-(now_since_boot-ts2);
 				rset_m = redisCommand(c_m, "HSET %s ts1 %llu", charbuf, ts1);
 				rset_m = redisCommand(c_m, "HSET %s ts2 %llu", charbuf, ts2);
 				rset_m = redisCommand(c_m, "HSET %s c %llu", charbuf, c);
 			}
 			prev_key = key;
+			freeReplyObject(rset_m);
 		}
 		close(mapall_fd);
-		freeReplyObject(rset_m);
 		freeReplyObject(reply_m);
 
 		sleep(3);
