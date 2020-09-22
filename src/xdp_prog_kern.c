@@ -3,6 +3,8 @@
 #include <linux/ip.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include <linux/in.h>
+#include <linux/udp.h>
 
 #include "../common/xdp_stats_kern_user.h" /* common structure for both userspace and kernel code */
 #include "../common/xdp_stats_kern.h"
@@ -44,6 +46,8 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
 	struct iphdr *iph = data + l3_offset;
+	struct udphdr *udp = data + l3_offset + sizeof(*iph);
+
 	struct key_addr ka;
 	struct mapval mv;
 	__u64 get_ns, *t_now;
@@ -53,61 +57,61 @@ int parse_ipv4(struct xdp_md *ctx, int l3_offset){
 	__u64 TF1 = 500;
 	//__u64 TF2 = 500;
 
-	if (iph + 1 > data_end) {
+	if (udp + 1 > data_end) {
 		return XDP_ABORTED;
 	}
 
-	ka.saddr = iph->saddr;
-	ka.daddr = iph->daddr;
-	//bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
+	if ((iph->protocol == IPPROTO_UDP) && (bpf_htons(udp->dest) == 5683)) {
+		ka.saddr = iph->saddr;
+		ka.daddr = iph->daddr; // real dest IP addr
+		//bpf_printk("DEBUG: src: %llu, dst: %llu\n", ka.saddr, ka.daddr);
 
-	__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
-	get_ns = bpf_ktime_get_ns();
-	t_now = &get_ns;
+		__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
+		get_ns = bpf_ktime_get_ns();
+		t_now = &get_ns;
 
-	if(mv_get && t_now) {
-		mv.ts1 = *((__u64 *)mv_get);
-		mv.ts2 = *((__u64 *)mv_get +1);
-		mv.c = *((__u64 *)mv_get +2); 
-		mv.dc = *((__u64 *)mv_get +3); 
-		mv.mark = *((__u64 *)mv_get +4); 
+		if(mv_get && t_now) {
+			mv.ts1 = *((__u64 *)mv_get);
+			mv.ts2 = *((__u64 *)mv_get +1);
+			mv.c = *((__u64 *)mv_get +2); 
+			mv.dc = *((__u64 *)mv_get +3); 
+			mv.mark = *((__u64 *)mv_get +4); 
 
-		if((*t_now-mv.ts2) > TT1) {
+			if((*t_now-mv.ts2) > TT1) {
+				mv.ts1 = (__u64) *t_now;
+				mv.c = 0;
+				mv.dc = 0;
+				mv.mark = 1;
+			}
+
+		} else {
 			mv.ts1 = (__u64) *t_now;
+			mv.ts2 = (__u64) *t_now;
 			mv.c = 0;
 			mv.dc = 0;
-			mv.mark = 1;
+			mv.mark = 0;
 		}
 
-	} else {
-		mv.ts1 = (__u64) *t_now;
+		mv.c = mv.c + 1;
+		mv.dc = mv.dc +1;
 		mv.ts2 = (__u64) *t_now;
-		mv.c = 0;
-		mv.dc = 0;
-		mv.mark = 0;
-	}
 
-	mv.c = mv.c + 1;
-	mv.dc = mv.dc +1;
-	mv.ts2 = (__u64) *t_now;
+		//bpf_printk("DEBUG: ts1:%llu, ts2:%llu\n", mv.ts1, mv.ts2);
+		//bpf_printk("DEBUG: c:%lu, dc:%lu, mark:%u\n", mv.c, mv.dc, mv.mark);
+		//bpf_printk("size of %lu-byte\n", sizeof(maparr));
+		
+		__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
+		void *vp = mv_arr;
 
-	//bpf_printk("DEBUG: ts1:%llu, ts2:%llu\n", mv.ts1, mv.ts2);
-	//bpf_printk("DEBUG: c:%lu, dc:%lu, mark:%u\n", mv.c, mv.dc, mv.mark);
-	//bpf_printk("size of %lu-byte\n", sizeof(maparr));
-	
-	__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
-	void *vp = mv_arr;
-
-	bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
-
-	if ((mv.ts2-mv.ts1) > TT2 ) { 
-		if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
-			bpf_printk("DROP HIGH! \n");
-			return XDP_DROP;
-			// Send an overload warning
+		bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
+		if ((mv.ts2-mv.ts1) > TT2 ) { 
+			if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
+				bpf_printk("DROP HIGH! \n");
+				return XDP_DROP;
+				// Send an overload warning
+			}
 		}
 	}
-	
 	// remove tunnel header and forward packet
 	return XDP_PASS;
 }
