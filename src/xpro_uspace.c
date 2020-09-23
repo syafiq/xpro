@@ -116,11 +116,10 @@ int main() {
 	struct mapval mv;
 	__u64 mv_get[5];
 	int res;
-        __u64 TT1 = 2000000000; //ns -> 2 sec
+        __u64 TT1 = 1000000000; //ns -> 2 sec
         //__u64 TT2 = 1000000000; //ns -> 1 sec
         //__u64 TT3 = 2000000000; //ns
         //__u64 TF1 = 500;
-        //__u64 TF2 = 500;
 	void *vp;
 	__u64 mv_arr[5];
 
