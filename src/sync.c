@@ -92,7 +92,7 @@ int main()
 		reply_m = redisCommand(db_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
 		TT1 = 2000000000;
 		TT4 = 2000000000;
-		r= 6;
+		r= 2;
 
 		for (i=0; i < size_m->integer; i++) {
 			/*
@@ -122,6 +122,7 @@ int main()
                 	        close(mapall_fd);
                 	        return err_mapall;
                 	}
+			printf("ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			close(mapall_fd);
 			tr_m = redisCommand(db_m,"HGETALL %s", idaddr);
