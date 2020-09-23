@@ -122,7 +122,6 @@ int main()
                 	        close(mapall_fd);
                 	        return err_mapall;
                 	}
-			printf("atas ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			close(mapall_fd);
 			tr_m = redisCommand(db_m,"HGETALL %s", idaddr);
