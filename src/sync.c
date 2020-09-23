@@ -31,25 +31,6 @@ const char *pin_basedir = "/sys/fs/bpf";
 #define PATH_MAX  4096
 #endif
 
-//static unsigned long get_nsecs(void) {
-//  struct timespec ts;
-//
-//      clock_gettime(CLOCK_MONOTONIC, &ts);
-//      return ts.tv_sec * 1000000000UL + ts.tv_nsec;
-//}
-//
-//static unsigned long epoch_nsecs(void) {
-//  long int ns;
-//    time_t sec;
-//    struct timespec spec;
-//
-//    clock_gettime(CLOCK_REALTIME, &spec);
-//    sec = spec.tv_sec;
-//    ns = spec.tv_nsec;
-//
-//    return (uint64_t) sec * BILLION + (uint64_t) ns;
-//}
-
 int main() 
 {
         char pin_dir[PATH_MAX];
@@ -72,11 +53,6 @@ int main()
 	struct key_addr ka;
 	char *p;
 	int res;
-	//__u64 now_since_boot;
-	//__u64 now_since_epoch;
-	//__u64 ts1_get, ts2_get, c_get, dc_get, mark_get, ts1_sync, ts2_sync;
-	__u64 c_get, dc_get, mark_get, ts1_sync, ts2_sync;
-	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 	__u64 retval[3];
 
 
@@ -91,17 +67,19 @@ int main()
 	struct key_addr prev_key, key;
 	char bytes_s[INET_ADDRSTRLEN], bytes_d[INET_ADDRSTRLEN];
 	char charbuf[INET_ADDRSTRLEN+INET_ADDRSTRLEN+1];
-	__u64 ts1, ts2, c;
+	__u64 ts1_upl, ts2_upl, c_upl;
+	__u64 ts1_m, ts2_m, c_m;
+	__u64 ts1_l, ts2_l, c_l, dc_l, mark_l;
 
 	while(1) 
 	{
-		redisContext *c_m = redisConnect("192.168.100.99", 6379);
+		redisContext *db_m = redisConnect("192.168.100.99", 6379);
 
-		if (c_m == NULL || c_m->err) 
+		if (db_m == NULL || db_m->err) 
 		{
-			if (c_m) 
+			if (db_m) 
 			{
-				printf("Error: %s\n", c_m->errstr);
+				printf("Error: %s\n", db_m->errstr);
 			} else 
 			{
 				printf("Can't allocate redis context\n");
@@ -110,18 +88,18 @@ int main()
 
 		// 1. first we should send W (load) to M_db
 		// 2. receive W value of all other proxies from M_db
-		size_m = redisCommand(c_m, "DBSIZE");
-		reply_m = redisCommand(c_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
+		size_m = redisCommand(db_m, "DBSIZE");
+		reply_m = redisCommand(db_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
 		TT1 = 2000000000;
 		TT4 = 2000000000;
 		r= 6;
-		res = -1;
 
 		for (i=0; i < size_m->integer; i++) {
 			/*
 			 * for each (i, D_addr) in M_db
 			 * */
 
+			res = -1;
 			idaddr = reply_m->element[1]->element[i]->str;
 			idaddr_proc = calloc(strlen(idaddr)+1, sizeof(char));
 			strcpy(idaddr_proc, idaddr);
@@ -133,7 +111,6 @@ int main()
 			if (p) {
 				inet_pton(AF_INET, p, &ka.daddr);
 			}
-			free(idaddr_proc);
 			
 			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 			if (mapall_fd < 0) {
@@ -145,32 +122,28 @@ int main()
                 	        close(mapall_fd);
                 	        return err_mapall;
                 	}
+			printf("atas ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			close(mapall_fd);
-			tr_m = redisCommand(c_m,"HGETALL %s", idaddr);
+			tr_m = redisCommand(db_m,"HGETALL %s", idaddr);
+			free(idaddr_proc);
 
 			if (res == 0) {
 				/*
 				 * if i,D_addr in L_db
 				 * */
 
-				ts1_sync = *((__u64 *)retval);
-				ts2_sync = *((__u64 *)retval+1);
-				c_get = *((__u64 *)retval+2);
-				dc_get = *((__u64 *)retval+3);
-				mark_get = *((__u64 *)retval+4);
+				ts1_l = *((__u64 *)retval);
+				ts2_l = *((__u64 *)retval+1);
+				c_l = *((__u64 *)retval+2);
+				dc_l = *((__u64 *)retval+3);
+				mark_l = *((__u64 *)retval+4);
+				printf("c_l %llu dc_l %llu mark_l %llu \n", c_l, dc_l, mark_l);
+				ts1_m = strtoull((tr_m->element[1]->str),NULL,10);
+				ts2_m = strtoull((tr_m->element[3]->str),NULL,10);
+				c_m = strtoull((tr_m->element[5]->str),NULL,10);
 
-				//now_since_boot = get_nsecs();
-				//now_since_epoch = epoch_nsecs();
-				//ts1_sync = now_since_epoch-(now_since_boot-ts1_get);
-				//ts2_sync = now_since_epoch-(now_since_boot-ts2_get);
-				//ts1_sync = ts1_get;
-				//ts2_sync = ts2_get;
-
-				if ((mark_get == 1) && 
-				(ts1_sync-((__u64)atoi(tr_m->element[1]->str)) > TT1))
-				{ 
-					printf("markget 1 \n");
+				if ((mark_l == 1) && (ts1_l-ts1_m > TT1)) {
 					/*
 					 * if mark'=1 and ts1'-ts1>TT1
 					 * 	mark' = 0
@@ -182,12 +155,10 @@ int main()
 
 					mark_l = 0;
 					dc_l = 0;
-					rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
-					rset_m = redisCommand(c_m, "HSET %s ts2 %llu", idaddr, ts2_sync);
-					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_get);
-				} else 
-				{
-					printf("else \n");
+					rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
+					rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
+					rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
+				} else {
 					/* else 
 					 * 	mark' = 0
 					 * 	if ts2' < ts2
@@ -202,19 +173,16 @@ int main()
 					 * */
 
 					mark_l = 0;
-					if(ts2_sync < (__u64)atoi(tr_m->element[3]->str))
-					{
-						ts2_l = (__u64) atoi(tr_m->element[3]->str);
-					} else if (ts2_sync-(__u64)atoi(tr_m->element[1]->str) > TT4) 
-					{
-						ts1_l = ts2_sync-((ts2_sync-(__u64) atoi(tr_m->element[1]->str))/r);
-						rset_m = redisCommand(c_m, "HSET %s c %d", idaddr,
-							 floor((__u64)atoi(tr_m->element[5]->str)/r));
-						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
-						rset_m = redisCommand(c_m, "HSET %s ts2 %llu", idaddr, ts2_sync);
-					} else
-					{
-						rset_m = redisCommand(c_m, "HSET %s ts2 %s", idaddr, ts2_sync);
+					if(ts2_l < ts2_m) {
+						ts2_l = ts2_m;
+					} else if (ts2_l-ts1_m > TT4) {
+						ts1_l = ts2_l-((ts2_l-ts1_m)/r);
+						c_m = floor(c_m/r);
+						rset_m = redisCommand(db_m, "HSET %s c %d", idaddr, c_m);
+						rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
+						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
+					} else {
+						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
 					}
 
 					/*
@@ -227,23 +195,20 @@ int main()
 					 * dc' = 0
 					 * */
 
-					if(ts1_sync > (__u64)atoi(tr_m->element[1]->str))
-					{
-						ts1_l = (__u64)atoi(tr_m->element[1]->str);
-						
-					} else if (ts2_sync-ts1_sync > TT4)
-					{
-						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
+					if(ts1_l > ts1_m) {
+						ts1_l = ts1_m;
+					} else if (ts2_l-ts1_l > TT4) {
+						rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
 					}
-					c_l = (__u64) atoi(tr_m->element[5]->str) + (__u64) dc_get;
+
+					c_l = c_m + dc_l;
 					// here, it should be locked
-					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_l);
+					rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
 					dc_l = 0;
 				}
 				freeReplyObject(rset_m);
 			} else 
 			{
-				printf("else luar \n");
 				/*
 				 * ts1' = ts1
 				 * ts2' = ts2
@@ -252,18 +217,40 @@ int main()
 				 * mark' = 0
 				 * */
 
-				ts1_l = (__u64) atoi(tr_m->element[1]->str);
-				ts2_l = (__u64) atoi(tr_m->element[3]->str);
-				c_l = (__u64) atoi(tr_m->element[5]->str);
+				ts1_l = ts1_m;
+				ts2_l = ts2_m;
+				c_l = c_m;
 				dc_l = 0;
 				mark_l = 0;
 			}
-			//ts1_l = ts1_l-(now_since_epoch-now_since_boot);
-			//ts2_l = ts2_l-(now_since_epoch-now_since_boot);
-			
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
-			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_NOEXIST);
+
+			idaddr_proc = calloc(strlen(idaddr)+1, sizeof(char));
+			strcpy(idaddr_proc, idaddr);
+			p = strtok(idaddr_proc, ",");
+			if (p) {
+				inet_pton(AF_INET, p, &ka.saddr);
+			}
+			p = strtok(NULL, ",");
+			if (p) {
+				inet_pton(AF_INET, p, &ka.daddr);
+			}
+
+			printf("ka.saddr %u ka.daddr %u c %llu dc %llu mark %llu \n", ka.saddr, ka.daddr, c_l, dc_l, mark_l);
+			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
+			if (mapall_fd < 0) {
+                	        return EXIT_FAIL_BPF;
+                	}
+                	err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+                	if (err_mapall) {
+                	        printf("ERR: map via FD not compatible\n");
+                	        close(mapall_fd);
+                	        return err_mapall;
+                	}
+			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
+			free(idaddr_proc);
+			close(mapall_fd);
 			freeReplyObject(tr_m);
 		}
 
@@ -274,10 +261,6 @@ int main()
 		 * 		ts2 = ts2'
 		 * 		c = c'
 		 * */
-                prev_key.daddr = -1;
-                prev_key.saddr = -1;
-                key.daddr = -1;
-                key.saddr = -1;
 
 		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 		if (mapall_fd < 0) {
@@ -299,18 +282,19 @@ int main()
 			inet_ntop(AF_INET, &(key.saddr), bytes_s, INET_ADDRSTRLEN);
 			inet_ntop(AF_INET, &(key.daddr), bytes_d, INET_ADDRSTRLEN);
 			snprintf(charbuf, sizeof(charbuf), "%s,%s", bytes_s, bytes_d);
-
-			rset_m = redisCommand(c_m,"EXISTS %s", charbuf);
-			if (rset_m->integer == 0) {
-				bpf_map_lookup_elem(mapall_fd, &key, &retval);
-				ts1 = *((__u64 *)retval);
-				ts2 = *((__u64 *)retval+1);
-				c = *((__u64 *)retval+2);
-				//ts1 = now_since_epoch-(now_since_boot-ts1);
-				//ts2 = now_since_epoch-(now_since_boot-ts2);
-				rset_m = redisCommand(c_m, "HSET %s ts1 %llu", charbuf, ts1);
-				rset_m = redisCommand(c_m, "HSET %s ts2 %llu", charbuf, ts2);
-				rset_m = redisCommand(c_m, "HSET %s c %llu", charbuf, c);
+			rset_m = redisCommand(db_m,"EXISTS %s", charbuf);
+			if (key.saddr != 0) {
+				if (key.daddr != 0) {
+					if (rset_m->integer == 0) {
+						bpf_map_lookup_elem(mapall_fd, &key, &retval);
+						ts1_upl = *((__u64 *)retval);
+						ts2_upl = *((__u64 *)retval+1);
+						c_upl = *((__u64 *)retval+2);
+						rset_m = redisCommand(db_m, "HSET %s ts1 %llu", charbuf, ts1_upl);
+						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", charbuf, ts2_upl);
+						rset_m = redisCommand(db_m, "HSET %s c %llu", charbuf, c_upl);
+					}
+				}
 			}
 			prev_key = key;
 			freeReplyObject(rset_m);
@@ -318,7 +302,7 @@ int main()
 		close(mapall_fd);
 		freeReplyObject(reply_m);
 
-		redisFree(c_m);
+		redisFree(db_m);
 		sleep(1);
 	}
 }
