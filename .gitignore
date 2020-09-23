@@ -33,3 +33,4 @@ src/sync
 *.blg
 *.out
 *.synctex.gz
+*.txt
