@@ -92,7 +92,7 @@ int main()
 		reply_m = redisCommand(db_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
 		TT1 = 1000000000;
 		TT4 = 1000000000;
-		r= 1;
+		r= 2;
 
 		for (i=0; i < size_m->integer; i++) {
 			/*
