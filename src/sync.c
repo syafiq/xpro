@@ -236,6 +236,7 @@ int main()
 						rset_m = redisCommand(c_m, "HSET %s ts1 %llu", idaddr, ts1_sync);
 					}
 					c_l = (__u64) atoi(tr_m->element[5]->str) + (__u64) dc_get;
+					// here, it should be locked
 					rset_m = redisCommand(c_m, "HSET %s c %llu", idaddr, c_l);
 					dc_l = 0;
 				}
