@@ -92,7 +92,7 @@ int main()
 		reply_m = redisCommand(db_m, "SCAN 0 COUNT 1000"); // COUNT->ugly hack!
 		TT1 = 1000000000;
 		TT4 = 1000000000;
-		r= 2;
+		r= 1;
 
 		for (i=0; i < size_m->integer; i++) {
 			/*
@@ -138,77 +138,65 @@ int main()
 				c_l = *((__u64 *)retval+2);
 				dc_l = *((__u64 *)retval+3);
 				mark_l = *((__u64 *)retval+4);
-				printf("c_l %llu dc_l %llu mark_l %llu \n", c_l, dc_l, mark_l);
+				printf("idaddr %s ts1 %llu ts2 %llu c_l %llu dc_l %llu mark_l %llu \n", idaddr, ts1_l, ts2_l, c_l, dc_l, mark_l);
 				ts1_m = strtoull((tr_m->element[1]->str),NULL,10);
 				ts2_m = strtoull((tr_m->element[3]->str),NULL,10);
 				c_m = strtoull((tr_m->element[5]->str),NULL,10);
-
-				if ((mark_l == 1) && (ts1_l-ts1_m > TT1)) {
-					/*
-					 * if mark'=1 and ts1'-ts1>TT1
-					 * 	mark' = 0
-					 * 	dc' = 0
-					 * 	ts1 = ts1'
-					 * 	ts2 = ts2'
-					 * 	c = c'
-					 * */
-
+				
+				printf("TF2 atas %f \n", ceil(c_l*1000000000/ (ts2_l-ts1_l)));
+				if (mark_l == 1) {
 					mark_l = 0;
-					dc_l = 0;
-					rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
-					rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
-					rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
-				} else {
-					/* else 
-					 * 	mark' = 0
-					 * 	if ts2' < ts2
-					 * 		ts2' = ts2
-					 * 	else if ts2'-ts1 > TT4
-					 * 		ts1' = ts2'-(ts2'-ts1)/r
-					 * 		c = floor(c/r)
-					 * 		ts1 = ts1'
-					 * 		ts2 = ts2'
-					 * 	else
-					 * 		ts2 = ts2'
-					 * */
-
-					mark_l = 0;
-					if(ts2_l < ts2_m) {
-						ts2_l = ts2_m;
-					} else if (ts2_l-ts1_m > TT4) {
-						ts1_l = ts2_l-((ts2_l-ts1_m)/r);
-						c_m = floor(c_m/r);
-						rset_m = redisCommand(db_m, "HSET %s c %d", idaddr, c_m);
+					//printf("A \n");
+					if (ts1_l-ts1_m > TT1) {
+						//printf("B \n");
+						dc_l = 0;
 						rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
 						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
+						rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
 					} else {
+						//printf("C \n");
+						goto marknotnil;
+					}
+				} else {
+					//printf("D \n");
+					marknotnil:
+					if(ts2_l < ts2_m) {
+						//printf("E \n");
+						ts2_l = ts2_m;
+					} else {
+						//printf("F \n");
+						if (ts2_l-ts1_m > TT4) {
+							//printf("G \n");
+							ts1_l = ts2_l-((ts2_l-ts1_m)/r);
+							c_m = ceil(c_m/r);
+							rset_m = redisCommand(db_m, "HSET %s c %d", idaddr, c_m);
+							rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
+						}
 						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
 					}
-
-					/*
-					 * if ts1' > ts1
-					 * 	ts1' = ts1
-					 * else if ts2'-ts1' > TT4
-					 * 	ts1 = ts1'
-					 * c' = c + dc'
-					 * c = c'
-					 * dc' = 0
-					 * */
 
 					if(ts1_l > ts1_m) {
+						//printf("H \n");
 						ts1_l = ts1_m;
-					} else if (ts2_l-ts1_l > TT4) {
-						rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
+					} else {
+						//printf("I \n");
+						if (ts1_l-ts2_l > TT4) {
+							//printf("J \n");
+							rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
+						} else {
+							//printf("K \n");
+							ts1_l = ts1_m;
+						}
 					}
-
+					//printf("L \n");
 					c_l = c_m + dc_l;
-					// here, it should be locked
-					rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
-					dc_l = 0;
 				}
+				//printf("M \n");
+				rset_m = redisCommand(db_m, "HSET %s c %llu", idaddr, c_l);
+				dc_l = 0;
 				freeReplyObject(rset_m);
-			} else 
-			{
+			} else {
+				//printf("N \n");
 				/*
 				 * ts1' = ts1
 				 * ts2' = ts2
@@ -223,6 +211,7 @@ int main()
 				dc_l = 0;
 				mark_l = 0;
 			}
+			printf("TF2 bawah %f \n", ceil(c_l*1000000000/ (ts2_l-ts1_l)));
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
 
@@ -237,7 +226,7 @@ int main()
 				inet_pton(AF_INET, p, &ka.daddr);
 			}
 
-			printf("ka.saddr %u ka.daddr %u c %llu dc %llu mark %llu \n", ka.saddr, ka.daddr, c_l, dc_l, mark_l);
+			//printf("ka.saddr %u ka.daddr %u c %llu dc %llu mark %llu \n", ka.saddr, ka.daddr, c_l, dc_l, mark_l);
 			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 			if (mapall_fd < 0) {
                 	        return EXIT_FAIL_BPF;
@@ -303,6 +292,6 @@ int main()
 		freeReplyObject(reply_m);
 
 		redisFree(db_m);
-		sleep(1);
+		sleep(4);
 	}
 }
