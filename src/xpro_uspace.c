@@ -232,7 +232,7 @@ int main() {
 		//printf("ts2-ts1 %llu \n", curr_ts2-curr_ts1);
 		printf("curr_cdc %llu \n", curr_cdc);
 		if (curr_ts2-curr_ts1 > TT3) {
-			printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
+			printf("TF2 %f \n", ceil(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
 			if (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2) {
 				blocked_since_epoch = epoch_nsecs();
 				printf("blocked_since_epoch %llu \n", blocked_since_epoch);
