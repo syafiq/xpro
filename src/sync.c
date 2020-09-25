@@ -168,7 +168,6 @@ int main()
 							//printf("G \n");
 							ts1_l = ts2_l-((ts2_l-ts1_m)/r);
 							c_m = floor(c_m/r);
-							rset_m = redisCommand(db_m, "HSET %s c %d", idaddr, c_m);
 							rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
 						}
 						rset_m = redisCommand(db_m, "HSET %s ts2 %llu", idaddr, ts2_l);
