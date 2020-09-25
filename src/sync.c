@@ -138,12 +138,11 @@ int main()
 				c_l = *((__u64 *)retval+2);
 				dc_l = *((__u64 *)retval+3);
 				mark_l = *((__u64 *)retval+4);
-				printf("idaddr %s ts1 %llu ts2 %llu c_l %llu dc_l %llu mark_l %llu \n", idaddr, ts1_l, ts2_l, c_l, dc_l, mark_l);
+				printf("idaddr %s ts1 %llu ts2 %llu c_l %llu dc_l %llu ts2-ts1 %llu \n", idaddr, ts1_l, ts2_l, c_l, dc_l, ts2_l-ts1_l);
+				printf("TF2 atas %f \n", floor((c_l+dc_l)*1000000000/ (ts2_l-ts1_l)));
 				ts1_m = strtoull((tr_m->element[1]->str),NULL,10);
 				ts2_m = strtoull((tr_m->element[3]->str),NULL,10);
 				c_m = strtoull((tr_m->element[5]->str),NULL,10);
-				
-				printf("TF2 atas %f \n", ceil(c_l*1000000000/ (ts2_l-ts1_l)));
 				if (mark_l == 1) {
 					mark_l = 0;
 					//printf("A \n");
@@ -168,7 +167,7 @@ int main()
 						if (ts2_l-ts1_m > TT4) {
 							//printf("G \n");
 							ts1_l = ts2_l-((ts2_l-ts1_m)/r);
-							c_m = ceil(c_m/r);
+							c_m = floor(c_m/r);
 							rset_m = redisCommand(db_m, "HSET %s c %d", idaddr, c_m);
 							rset_m = redisCommand(db_m, "HSET %s ts1 %llu", idaddr, ts1_l);
 						}
@@ -211,7 +210,7 @@ int main()
 				dc_l = 0;
 				mark_l = 0;
 			}
-			printf("TF2 bawah %f \n", ceil(c_l*1000000000/ (ts2_l-ts1_l)));
+			printf("TF2 bawah %f \n", floor(c_l*1000000000/ (ts2_l-ts1_l)));
 			__u64 mv_arr[5] = {ts1_l, ts2_l, c_l, dc_l, mark_l};
 			vp = mv_arr;
 
@@ -237,7 +236,7 @@ int main()
                 	        close(mapall_fd);
                 	        return err_mapall;
                 	}
-			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
+			//bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 			free(idaddr_proc);
 			close(mapall_fd);
 			freeReplyObject(tr_m);

@@ -126,7 +126,6 @@ int main() {
 	while(1) {
 		res = -1;
 		now_since_epoch = epoch_nsecs();
-		printf("time_now %llu \n", now_since_epoch);
 		len = sizeof(cliaddr);
 		n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, 
 				(struct sockaddr *) &cliaddr, &len);
@@ -161,6 +160,7 @@ int main() {
 		res = bpf_map_lookup_elem(mapall_fd, &ka, &mv_get);
 
 		if (res == 0) {
+			printf("A \n");
 			mv.ts1 = *((__u64 *)mv_get);
                 	mv.ts2 = *((__u64 *)mv_get +1);
                 	mv.c = *((__u64 *)mv_get +2);
@@ -168,12 +168,17 @@ int main() {
                 	mv.mark = *((__u64 *)mv_get +4);
 
 			if(now_since_epoch-mv.ts2 > TT1) {
+				printf("B \n");
 			        mv.ts1 = now_since_epoch;
                                 mv.c = 0;
                                 mv.dc = 0;
                                 mv.mark = 1;	
 			}
+			if (mv.ts2 != mv.ts1) {
+				printf("TF2 %llu \n", mv.c*1000000000/ (mv.ts2-mv.ts1));
+			}
 		} else {
+			printf("C \n");
                         mv.ts1 = now_since_epoch;
                         mv.ts2 = now_since_epoch;
                         mv.c = 0;
@@ -183,7 +188,9 @@ int main() {
 
                 mv.c = mv.c + 1;
                 mv.dc = mv.dc +1;
+		//printf("dc %llu \n", mv.dc);
                 mv.ts2 = now_since_epoch;
+		//printf("TF2 %f \n", floor(mv.c*1000000000/ (mv.ts2-mv.ts1)));
 
 		mv_arr[0] = mv.ts1;
 		mv_arr[1] = mv.ts2;
@@ -230,9 +237,9 @@ int main() {
 		len = sizeof(servaddr);
 
 		//printf("ts2-ts1 %llu \n", curr_ts2-curr_ts1);
-		printf("curr_cdc %llu \n", curr_cdc);
+		//printf("curr_cdc %llu \n", curr_cdc);
 		if (curr_ts2-curr_ts1 > TT3) {
-			printf("TF2 %f \n", ceil(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
+			//printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
 			if (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2) {
 				blocked_since_epoch = epoch_nsecs();
 				printf("blocked_since_epoch %llu \n", blocked_since_epoch);
@@ -242,5 +249,7 @@ int main() {
 			sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
 		}
+
+		printf("===================== \n");
 	}
 }
