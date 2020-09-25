@@ -236,7 +236,7 @@ int main()
                 	        close(mapall_fd);
                 	        return err_mapall;
                 	}
-			//bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
+			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 			free(idaddr_proc);
 			close(mapall_fd);
 			freeReplyObject(tr_m);

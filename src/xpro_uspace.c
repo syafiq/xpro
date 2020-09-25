@@ -175,7 +175,7 @@ int main() {
                                 mv.mark = 1;	
 			}
 			if (mv.ts2 != mv.ts1) {
-				printf("TF2 %llu \n", mv.c*1000000000/ (mv.ts2-mv.ts1));
+				printf("c %llu TF2 %llu \n", mv.c, mv.c*1000000000/ (mv.ts2-mv.ts1));
 			}
 		} else {
 			printf("C \n");
