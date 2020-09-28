@@ -100,7 +100,7 @@ int main() {
 	int mapall_fd;
 	int err_mapall;
 
-	__u64 now_since_epoch, blocked_since_epoch;
+	__u64 now_since_epoch;
 	__u64 retval[3];
 	__u64 curr_ts1 = 0, ts1;
 	__u64 curr_ts2 = 0, ts2;
@@ -122,6 +122,8 @@ int main() {
         //__u64 TF1 = 500;
 	void *vp;
 	__u64 mv_arr[5];
+	int pass = 0;
+	int bl = 0;
 
 	while(1) {
 		res = -1;
@@ -236,19 +238,17 @@ int main() {
 		close(mapall_fd);
 		len = sizeof(servaddr);
 
-		//printf("ts2-ts1 %llu \n", curr_ts2-curr_ts1);
-		//printf("curr_cdc %llu \n", curr_cdc);
 		if ((curr_ts2-curr_ts1 > TT3) && (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2)) {
-			printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
-			blocked_since_epoch = epoch_nsecs();
-			printf("blocked_since_epoch %llu \n", blocked_since_epoch);
+			printf("TF realtime %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
+			bl = bl+1;
 			;
 		} else {
-			printf("send to backend \n");
+			pass = pass+1;
 			sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
 		}
 
+		printf("pass %d passper %f bl %d blper %f \n", pass, (double) (pass*100)/(pass+bl), bl, (double) (bl*100)/(pass+bl));
 		printf("===================== \n");
 	}
 }
