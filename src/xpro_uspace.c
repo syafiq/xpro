@@ -106,7 +106,7 @@ int main() {
 	__u64 curr_ts2 = 0, ts2;
 	__u64 curr_cdc = 0, c, dc;
 	__u64 TT3 = 1000000000;
-	__u64 TF2 = 75;
+	__u64 TF2 = 50;
 	int n;
 	socklen_t len;
 	struct key_addr prev_key, key, ka;
