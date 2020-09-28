@@ -174,9 +174,9 @@ int main() {
                                 mv.dc = 0;
                                 mv.mark = 1;	
 			}
-			if (mv.ts2 != mv.ts1) {
-				printf("c %llu TF2 %llu \n", mv.c, mv.c*1000000000/ (mv.ts2-mv.ts1));
-			}
+			//if (mv.ts2 != mv.ts1) {
+			//	printf("c %llu TF2 %llu \n", mv.c, mv.c*1000000000/ (mv.ts2-mv.ts1));
+			//}
 		} else {
 			printf("C \n");
                         mv.ts1 = now_since_epoch;
@@ -238,14 +238,13 @@ int main() {
 
 		//printf("ts2-ts1 %llu \n", curr_ts2-curr_ts1);
 		//printf("curr_cdc %llu \n", curr_cdc);
-		if (curr_ts2-curr_ts1 > TT3) {
-			//printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
-			if (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2) {
-				blocked_since_epoch = epoch_nsecs();
-				printf("blocked_since_epoch %llu \n", blocked_since_epoch);
-				;
-			}
+		if ((curr_ts2-curr_ts1 > TT3) && (floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)) >= TF2)) {
+			printf("TF2 %f \n", floor(curr_cdc*1000000000/ (curr_ts2-curr_ts1)));
+			blocked_since_epoch = epoch_nsecs();
+			printf("blocked_since_epoch %llu \n", blocked_since_epoch);
+			;
 		} else {
+			printf("send to backend \n");
 			sendto(sock_serv, (const char *)msg_inside, strlen(msg_inside), 
 			MSG_CONFIRM, (const struct sockaddr *) &servaddr, len);
 		}
