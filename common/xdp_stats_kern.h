@@ -25,7 +25,7 @@ struct bpf_map_def SEC("maps") mapall = {
 	.key_size    = sizeof(struct key_addr),
 	.value_size  = sizeof(maparr),
 	.max_entries = 10000,
-        .map_flags   = BPF_F_NO_PREALLOC,
+	.map_flags   = BPF_F_NO_PREALLOC,
 };
 
 static __always_inline
