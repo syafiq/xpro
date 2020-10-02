@@ -23,13 +23,16 @@ int xdp_program(struct xdp_md *ctx)
 	unsigned char msg_inside[5];
 	unsigned int payload_size;
 	unsigned int msg_n, dest_n;
-	struct key_addr ka;
+	struct key_addr ka, key;
 	struct mapval mv;
 	__u64 get_ns;
 	__u64 *t_now;
 	__u64 TT1 = 1000000000;
 	__u64 TT2 = 1000000000;
+	__u64 TT3 = 1000000000;
 	__u64 TF1 = 500;
+	__u64 TF2 = 75;
+	int a, b;
 
 	// sanity check
 	ip = data + sizeof(*eth);
@@ -62,6 +65,7 @@ int xdp_program(struct xdp_md *ctx)
 				t_now = &get_ns;
 
 				if (mv_get && t_now) {
+					
 					mv.ts1 = *((__u64 *)mv_get);
 					mv.ts2 = *((__u64 *)mv_get +1);
 					mv.c = *((__u64 *)mv_get +2);
@@ -95,7 +99,45 @@ int xdp_program(struct xdp_md *ctx)
 						return XDP_DROP;
 					}
 				}
-				
+
+				// LOW RATE attack
+				// =======================================================				
+				__u64 *look;
+				struct mapval mvl;
+				__u64 curr_ts1 = 0;
+				__u64 curr_ts2 = 0;
+				__u64 curr_cdc = 0;
+
+				// this loop might be optimized, it's a hack after all
+				for(a = 101; a<106; a++) { // optim HERE! server: 192.168.122.101-105
+					__u32 sa = 16777216*a + 65536*122 + 256*168 + 192;
+					for(b = 2; b<5; b++) { // optim HERE! server: 192.168.122.2-4
+						__u32 da = 16777216*b + 65536*122 + 256*168 + 192;
+						key.saddr = sa;
+						key.daddr = da;
+						if (da == ka.daddr) {
+							look = bpf_map_lookup_elem(&mapall, &key);
+							if (look) {
+								mvl.ts1 = *((__u64 *)look);
+								if ((mvl.ts1 < curr_ts1) || (curr_ts1 == 0)) {
+									curr_ts1 = mvl.ts1;
+								}
+								mvl.ts2 = *((__u64 *)look+1);
+								if (mvl.ts2 > curr_ts2) {
+									curr_ts2 = mvl.ts2;
+								}
+								mvl.c = *((__u64 *)look+2);
+								mvl.dc = *((__u64 *)look+3);
+								curr_cdc = curr_cdc+mv.c+mv.dc;
+							}
+						}
+					}
+				}
+
+				if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
+					return XDP_DROP;
+				}
+
 			}
 		}
 	}
