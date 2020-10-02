@@ -5,6 +5,7 @@
 #include <linux/udp.h>
 #include <string.h>
 #include <bpf/bpf_helpers.h>
+#include <stdlib.h>
 
 #include "../common/xdp_stats_kern_user.h" /* common structure for both userspace and kernel code */
 #include "../common/xdp_stats_kern.h"
@@ -27,6 +28,8 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 get_ns;
 	__u64 *t_now;
 	__u64 TT1 = 1000000000;
+	__u64 TT2 = 1000000000;
+	__u64 TF1 = 500;
 
 	// sanity check
 	ip = data + sizeof(*eth);
@@ -47,15 +50,15 @@ int xdp_program(struct xdp_md *ctx)
 			dest_n = bpf_probe_read_kernel_str(dest_inside, sizeof(dest_inside), payload);
 			msg = (unsigned char *)payload + 9; // FIXME: and also here
 			msg_n = bpf_probe_read_kernel_str(msg_inside, sizeof(msg_inside), msg);
-			if ((dest_n > 0) && (msg_n > 0)) {
+			if ((dest_n > 0) && (msg_n > 0)) { 
 				// bpf_printk("dest %s \n", dest_inside);
 				// bpf_printk("msg %s \n", msg_inside);
 				ka.saddr = ip->saddr;
-				//ka.daddr = (__u32) *dest_inside;
-				ka.daddr = ip->daddr;
-				// bpf_printk("ka.saddr %llu \n", ka.saddr);
-				// bpf_printk("ka.daddr %llu \n", ka.daddr);
+				// FIXME: should be dest_inside, but strtoul conversion in bpf is kind of weird
+				ka.daddr = 41593024; 
+				bpf_printk("ka.saddr %lu ka.daddr %lu \n", ka.saddr, ka.daddr);
 				__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
+				get_ns = bpf_ktime_get_ns();
 				t_now = &get_ns;
 
 				if (mv_get && t_now) {
@@ -81,6 +84,18 @@ int xdp_program(struct xdp_md *ctx)
 				mv.c = mv.c + 1;
 				mv.dc = mv.dc + 1;
 				mv.ts2 = (__u64) *t_now;
+
+				__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
+				void *vp = mv_arr;
+
+				bpf_map_update_elem(&mapall, &ka, vp, BPF_ANY);
+
+				if ((mv.ts2-mv.ts1) > TT2 ) { 
+					if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
+						return XDP_DROP;
+					}
+				}
+				
 			}
 		}
 	}
