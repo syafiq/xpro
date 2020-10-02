@@ -7,4 +7,4 @@ sudo rm -R /sys/fs/bpf/ens3/mapall
 sudo ./xdp_loader --dev ens3 --skb-mode
 
 # listener uspace
-sudo ./xpro_uspace
+# sudo ./xpro_uspace
