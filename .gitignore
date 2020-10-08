@@ -20,6 +20,7 @@ modules.order
 # undesired dir and file
 libbpf/src/build/
 src/xdp_loader
+src/xdp_uspace
 src/xdp_stats
 src/trace_read
 src/xpro_uspace
