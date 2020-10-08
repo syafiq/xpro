@@ -20,6 +20,14 @@ struct bpf_map_def SEC("maps") xdp_stats_map = {
 	.max_entries = XDP_ACTION_MAX,
 };
 
+struct bpf_map_def SEC("maps") tdiff = {
+	.type        = BPF_MAP_TYPE_PERCPU_HASH,
+	.key_size    = sizeof(__u32),
+	.value_size  = sizeof(__u64),
+	.max_entries = 5,
+	.map_flags   = BPF_F_NO_PREALLOC,
+};
+
 struct bpf_map_def SEC("maps") mapall = {
 	.type        = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size    = sizeof(struct key_addr),
