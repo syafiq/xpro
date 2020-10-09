@@ -59,7 +59,7 @@ int xdp_program(struct xdp_md *ctx)
 				ka.saddr = ip->saddr;
 				// FIXME: should be dest_inside, but strtoul conversion in bpf is kind of weird
 				ka.daddr = 41593024; 
-				bpf_printk("ka.saddr %lu ka.daddr %lu \n", ka.saddr, ka.daddr);
+				//bpf_printk("ka.saddr %lu ka.daddr %lu \n", ka.saddr, ka.daddr);
 				__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
 				get_ns = bpf_ktime_get_ns();
 				t_now = &get_ns;
@@ -96,6 +96,7 @@ int xdp_program(struct xdp_md *ctx)
 
 				if ((mv.ts2-mv.ts1) > TT2 ) { 
 					if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
+                        bpf_printk("DROP! \n");
 						return XDP_DROP;
 					}
 				}
