@@ -33,8 +33,12 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TF1 = 500;
 	__u64 TF2 = 75;
 	int a, b;
+    __u64 dropvalinit = 0;
+    __u32 drop = 1;
+    __u64 passvalinit = 0;
+    __u32 pass = 2;
 
-	// sanity check
+    // sanity check
 	ip = data + sizeof(*eth);
 	udp = (void *)ip + sizeof(*ip);
 	if ((void *)udp + sizeof(*udp) > data_end) {
@@ -96,7 +100,19 @@ int xdp_program(struct xdp_md *ctx)
 
 				if ((mv.ts2-mv.ts1) > TT2 ) { 
 					if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
-                        bpf_printk("DROP! \n");
+                        __u64 *dstat = bpf_map_lookup_elem(&stats, &drop);
+                        if (dstat) {
+                            __sync_fetch_and_add(dstat, 1);
+                            bpf_map_update_elem(&stats, &drop, dstat, BPF_ANY);
+
+                            __u64 *pstat2 = bpf_map_lookup_elem(&stats, &pass);
+                            if (pstat2) {
+                                bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
+                            } 
+
+                        } else {
+                            bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
+                        }
 						return XDP_DROP;
 					}
 				}
@@ -140,10 +156,20 @@ int xdp_program(struct xdp_md *ctx)
 				}
 
 			}
+
+            __u64 *pstat = bpf_map_lookup_elem(&stats, &pass);
+            if (pstat) {
+                __sync_fetch_and_add(pstat, 1);
+                bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
+                bpf_printk("pstat %llu \n", *pstat);
+            } else {
+                bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
+            }
+
 		}
 	}
 
-	return XDP_PASS;
+    return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";
