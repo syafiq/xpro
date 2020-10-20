@@ -149,6 +149,7 @@ int xdp_program(struct xdp_md *ctx)
 				    		mvl.c = *((__u64 *)look+2);
 				    		mvl.dc = *((__u64 *)look+3);
 				    		curr_cdc = curr_cdc+mv.c+mv.dc;
+                            bpf_printk("curr_cdc %llu \n", curr_cdc);
 				    	}
 				    }
 
