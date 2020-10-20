@@ -32,7 +32,7 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT3 = 1000000000;
 	__u64 TF1 = 500;
 	__u64 TF2 = 75;
-	int a, b;
+	int a;
     __u64 dropvalinit = 0;
     __u32 drop = 1;
     __u64 passvalinit = 0;
@@ -131,28 +131,24 @@ int xdp_program(struct xdp_md *ctx)
 				    __u64 curr_cdc = 0;
 
 				    // this loop might be optimized, it's a hack after all
-				    for(a = 101; a<106; a++) { // optim HERE! server: 192.168.122.101-105
-				    	__u32 sa = 16777216*a + 65536*122 + 256*168 + 192;
-				    	for(b = 2; b<5; b++) { // optim HERE! server: 192.168.122.2-4
-				    		__u32 da = 16777216*b + 65536*122 + 256*168 + 192;
-				    		key.saddr = sa;
-				    		key.daddr = da;
-				    		if (da == ka.daddr) {
-				    			look = bpf_map_lookup_elem(&mapall, &key);
-				    			if (look) {
-				    				mvl.ts1 = *((__u64 *)look);
-				    				if ((mvl.ts1 < curr_ts1) || (curr_ts1 == 0)) {
-				    					curr_ts1 = mvl.ts1;
-				    				}
-				    				mvl.ts2 = *((__u64 *)look+1);
-				    				if (mvl.ts2 > curr_ts2) {
-				    					curr_ts2 = mvl.ts2;
-				    				}
-				    				mvl.c = *((__u64 *)look+2);
-				    				mvl.dc = *((__u64 *)look+3);
-				    				curr_cdc = curr_cdc+mv.c+mv.dc;
-				    			}
+				    for(a=101; a<106; a++) { // optim HERE! server: 192.168.101-105.5
+				    	__u32 sa = (__u32) 16777216*5 + 65536*a + 256*168 + 192;
+				    	__u32 da = (__u32) 16777216*172 + 65536*122 + 256*168 + 192;
+				    	key.saddr = sa;
+				    	key.daddr = da;
+				    	look = bpf_map_lookup_elem(&mapall, &key);
+				    	if (look) {
+				    		mvl.ts1 = *((__u64 *)look);
+				    		if ((mvl.ts1 < curr_ts1) || (curr_ts1 == 0)) {
+				    			curr_ts1 = mvl.ts1;
 				    		}
+				    		mvl.ts2 = *((__u64 *)look+1);
+				    		if (mvl.ts2 > curr_ts2) {
+				    			curr_ts2 = mvl.ts2;
+				    		}
+				    		mvl.c = *((__u64 *)look+2);
+				    		mvl.dc = *((__u64 *)look+3);
+				    		curr_cdc = curr_cdc+mv.c+mv.dc;
 				    	}
 				    }
 
