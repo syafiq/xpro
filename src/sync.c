@@ -34,7 +34,7 @@ const char *pin_basedir = "/sys/fs/bpf";
 int main() 
 {
     char pin_dir[PATH_MAX];
-    int lendir = snprintf(pin_dir, PATH_MAX, "%s/%s", pin_basedir, "ens3");
+    int lendir = snprintf(pin_dir, PATH_MAX, "%s/%s", pin_basedir, "ens10");
     if (lendir < 0) {
             fprintf(stderr, "ERR: creating pin dirname\n");
             return EXIT_FAIL_OPTION;
