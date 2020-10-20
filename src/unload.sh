@@ -1,5 +1,5 @@
-sudo ./xdp_loader --unload --dev enp2s0 --skb-mode
-sudo rm -R /sys/fs/bpf/enp2s0/xdp_stats_map
-sudo rm -R /sys/fs/bpf/enp2s0/mapall
-sudo rm -R /sys/fs/bpf/enp2s0/tdiff
-sudo rm -R /sys/fs/bpf/enp2s0/stats
+sudo ./xdp_loader --unload --dev ens10 --skb-mode
+sudo rm -R /sys/fs/bpf/ens10/xdp_stats_map
+sudo rm -R /sys/fs/bpf/ens10/mapall
+sudo rm -R /sys/fs/bpf/ens10/tdiff
+sudo rm -R /sys/fs/bpf/ens10/stats
