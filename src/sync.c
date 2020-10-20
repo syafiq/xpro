@@ -113,7 +113,7 @@ int main()
 			
 			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 			if (mapall_fd < 0) {
-                	        return EXIT_FAIL_BPF;
+                return EXIT_FAIL_BPF;
             }
             err_mapall = check_map_fd_info(&mapall_info, &map_expect);
             if (err_mapall) {
@@ -121,12 +121,16 @@ int main()
                 close(mapall_fd);
                 return err_mapall;
             }
-			printf("ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
+			//printf("ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			close(mapall_fd);
 			tr_m = redisCommand(db_m,"HGETALL %s", idaddr);
 			free(idaddr_proc);
 
+			ts1_m = strtoull((tr_m->element[1]->str),NULL,10);
+			ts2_m = strtoull((tr_m->element[3]->str),NULL,10);
+			c_m = strtoull((tr_m->element[5]->str),NULL,10);
+            printf("ts1 %llu ts2 %llu c %llu \n", ts1_m, ts2_m, c_m);
 			if (res == 0) {
 				/*
 				 * if i,D_addr in L_db
@@ -137,11 +141,8 @@ int main()
 				c_l = *((__u64 *)retval+2);
 				dc_l = *((__u64 *)retval+3);
 				mark_l = *((__u64 *)retval+4);
-				printf("idaddr %s ts1 %llu ts2 %llu c_l %llu dc_l %llu ts2-ts1 %llu \n", idaddr, ts1_l, ts2_l, c_l, dc_l, ts2_l-ts1_l);
+				printf("idaddr %s ts1 %llu ts2 %llu c_l %llu\n", idaddr, ts1_l, ts2_l, c_l);
 				printf("TF2 atas %f \n", floor((c_l+dc_l)*1000000000/ (ts2_l-ts1_l)));
-				ts1_m = strtoull((tr_m->element[1]->str),NULL,10);
-				ts2_m = strtoull((tr_m->element[3]->str),NULL,10);
-				c_m = strtoull((tr_m->element[5]->str),NULL,10);
 				if (mark_l == 1) {
 					mark_l = 0;
 					//printf("A \n");
