@@ -68,7 +68,10 @@ int xdp_program(struct xdp_md *ctx)
 				get_ns = bpf_ktime_get_ns();
 				t_now = &get_ns;
 
-				if (mv_get && t_now) {
+                __u32 tdiff_num = 1;
+                __u32 *tdk = &tdiff_num;
+                __u64 *td = bpf_map_lookup_elem(&tdiff, tdk);
+				if (mv_get && t_now && td) {
 					
 					mv.ts1 = *((__u64 *)mv_get);
 					mv.ts2 = *((__u64 *)mv_get +1);
@@ -77,21 +80,21 @@ int xdp_program(struct xdp_md *ctx)
 					mv.mark = *((__u64 *)mv_get +4);
 					
 					if((*t_now-mv.ts2) > TT1) {
-						mv.ts1 = (__u64) *t_now;
+						mv.ts1 = (*t_now) + (*td);
 						mv.c = 0;
 						mv.dc = 0;
 						mv.mark = 1;
 					}
 				} else {
-					mv.ts1 = (__u64) *t_now;
-					mv.ts2 = (__u64) *t_now;
+					mv.ts1 = (*t_now) + (*td);
+					mv.ts2 = (*t_now) + (*td);
 					mv.c = 0;
 					mv.dc = 0;
 					mv.mark = 0;
 				}
 				mv.c = mv.c + 1;
 				mv.dc = mv.dc + 1;
-				mv.ts2 = (__u64) *t_now;
+				mv.ts2 = (*t_now) + (*td);
 
 				__u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
 				void *vp = mv_arr;
@@ -107,7 +110,7 @@ int xdp_program(struct xdp_md *ctx)
 
                             __u64 *pstat2 = bpf_map_lookup_elem(&stats, &pass);
                             if (pstat2) {
-                                bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
+                                //bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
                             } 
 
                         } else {
@@ -161,7 +164,7 @@ int xdp_program(struct xdp_md *ctx)
             if (pstat) {
                 __sync_fetch_and_add(pstat, 1);
                 bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
-                bpf_printk("pstat %llu \n", *pstat);
+                //bpf_printk("pstat %llu \n", *pstat);
             } else {
                 bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
             }
