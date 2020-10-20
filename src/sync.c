@@ -22,7 +22,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <inttypes.h>
-#define BILLION  1000000000L
+#define BILLION 1000000000L
 #include <hiredis/hiredis.h>
 
 const char *pin_basedir = "/sys/fs/bpf";
