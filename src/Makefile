@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 
 XDP_TARGETS := xpro_kern
-USER_TARGETS := statread xdp_loader trace_read syncdb xdp_uspace sync
+USER_TARGETS := statread xdp_loader trace_read syncdb xdp_uspace sync usp_tmp
 
 LIBBPF_DIR = ../libbpf/src/
 COMMON_DIR = ../common/

@@ -27,6 +27,7 @@ src/xpro_uspace
 src/syncdb
 src/sync
 src/statread
+src/usp_tmp
 
 # tex related
 *.log
