@@ -33,28 +33,27 @@ const char *pin_basedir = "/sys/fs/bpf";
 
 int main() 
 {
-        char pin_dir[PATH_MAX];
-        int lendir = snprintf(pin_dir, PATH_MAX, "%s/%s", pin_basedir, "ens3");
-        if (lendir < 0) {
-                fprintf(stderr, "ERR: creating pin dirname\n");
-                return EXIT_FAIL_OPTION;
-        }
+    char pin_dir[PATH_MAX];
+    int lendir = snprintf(pin_dir, PATH_MAX, "%s/%s", pin_basedir, "ens3");
+    if (lendir < 0) {
+            fprintf(stderr, "ERR: creating pin dirname\n");
+            return EXIT_FAIL_OPTION;
+    }
 
 	const struct bpf_map_info map_expect = {
                 .key_size = sizeof(struct key_addr),
                 .value_size = sizeof(maparr),
                 .max_entries  = 10000,
-        };
-        struct bpf_map_info mapall_info = {0};
+    };
+    struct bpf_map_info mapall_info = {0};
 
-        int mapall_fd;
-        int err_mapall;
+    int mapall_fd;
+    int err_mapall;
 
 	struct key_addr ka;
 	char *p;
 	int res;
 	__u64 retval[3];
-
 
 	int TT1, TT4, r;
 	char *idaddr, *idaddr_proc;
@@ -115,13 +114,13 @@ int main()
 			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 			if (mapall_fd < 0) {
                 	        return EXIT_FAIL_BPF;
-                	}
-                	err_mapall = check_map_fd_info(&mapall_info, &map_expect);
-                	if (err_mapall) {
-                	        printf("ERR: map via FD not compatible\n");
-                	        close(mapall_fd);
-                	        return err_mapall;
-                	}
+            }
+            err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+            if (err_mapall) {
+            	printf("ERR: map via FD not compatible 0\n");
+                close(mapall_fd);
+                return err_mapall;
+            }
 			printf("ka.saddr %u ka.daddr %u ", ka.saddr, ka.daddr);
 			res = bpf_map_lookup_elem(mapall_fd, &ka, &retval);
 			close(mapall_fd);
@@ -227,14 +226,14 @@ int main()
 			//printf("ka.saddr %u ka.daddr %u c %llu dc %llu mark %llu \n", ka.saddr, ka.daddr, c_l, dc_l, mark_l);
 			mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 			if (mapall_fd < 0) {
-                	        return EXIT_FAIL_BPF;
-                	}
-                	err_mapall = check_map_fd_info(&mapall_info, &map_expect);
-                	if (err_mapall) {
-                	        printf("ERR: map via FD not compatible\n");
-                	        close(mapall_fd);
-                	        return err_mapall;
-                	}
+				return EXIT_FAIL_BPF;
+			}
+			err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+            if (err_mapall) {
+            	printf("ERR: map via FD not compatible 1\n");
+                close(mapall_fd);
+                return err_mapall;
+            }
 			bpf_map_update_elem(mapall_fd, &ka, vp, BPF_ANY);
 			free(idaddr_proc);
 			close(mapall_fd);
@@ -251,19 +250,20 @@ int main()
 
 		mapall_fd = open_bpf_map_file(pin_dir, "mapall", &mapall_info);
 		if (mapall_fd < 0) {
-                        return EXIT_FAIL_BPF;
-                }
-                err_mapall = check_map_fd_info(&mapall_info, &map_expect);
-                if (err_mapall) {
-                        printf("ERR: map via FD not compatible\n");
-                        close(mapall_fd);
-                        return err_mapall;
-                }
+        	return EXIT_FAIL_BPF;
+        }
 
-                prev_key.daddr = -1;
-                prev_key.saddr = -1;
-                key.daddr = -1;
-                key.saddr = -1;
+        err_mapall = check_map_fd_info(&mapall_info, &map_expect);
+        if (err_mapall) {
+                printf("ERR: map via FD not compatible 2\n");
+                close(mapall_fd);
+                return err_mapall;
+        }
+
+        prev_key.daddr = -1;
+        prev_key.saddr = -1;
+        key.daddr = -1;
+        key.saddr = -1;
 
 		while(bpf_map_get_next_key(mapall_fd, &prev_key, &key) == 0) {
 			inet_ntop(AF_INET, &(key.saddr), bytes_s, INET_ADDRSTRLEN);
