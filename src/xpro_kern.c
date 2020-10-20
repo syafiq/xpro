@@ -30,8 +30,8 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT1 = 1000000000;
 	__u64 TT2 = 1000000000;
 	__u64 TT3 = 1000000000;
-	__u64 TF1 = 500;
-	__u64 TF2 = 75;
+	__u64 TF1 = 2000000;
+	__u64 TF2 = 1000000;
 	int a;
     __u64 dropvalinit = 0;
     __u32 drop = 1;
