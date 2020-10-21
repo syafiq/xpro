@@ -132,7 +132,7 @@ int xdp_program(struct xdp_md *ctx)
 
 				    // this loop might be optimized, it's a hack after all
 				    for(a=101; a<106; a++) { // optim HERE! server: 192.168.101-105.5
-				    	__u32 sa = (__u32) 16777216*5 + 65536*a + 256*168 + 192;
+				    	__u32 sa = (__u32) 16777216*20 + 65536*a + 256*168 + 192;
 				    	__u32 da = (__u32) 16777216*172 + 65536*122 + 256*168 + 192;
 				    	key.saddr = sa;
 				    	key.daddr = da;
@@ -149,12 +149,13 @@ int xdp_program(struct xdp_md *ctx)
 				    		mvl.c = *((__u64 *)look+2);
 				    		mvl.dc = *((__u64 *)look+3);
 				    		curr_cdc = curr_cdc+mv.c+mv.dc;
-                            bpf_printk("curr_cdc %llu \n", curr_cdc);
+                            //bpf_printk("curr_cdc %llu \n", curr_cdc);
 				    	}
 				    }
 
+                    bpf_printk("TF2_calc %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				    if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
-				    	return XDP_DROP;
+                        return XDP_DROP;
 				    }
                 }
 			}
