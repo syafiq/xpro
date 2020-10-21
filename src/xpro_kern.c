@@ -155,6 +155,19 @@ int xdp_program(struct xdp_md *ctx)
 
                     bpf_printk("TF2_calc %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				    if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
+                        __u64 *dstat2 = bpf_map_lookup_elem(&stats, &drop);
+                        if (dstat2) {
+                            __sync_fetch_and_add(dstat2, 1);
+                            bpf_map_update_elem(&stats, &drop, dstat2, BPF_ANY);
+
+                            __u64 *pstat3 = bpf_map_lookup_elem(&stats, &pass);
+                            if (pstat3) {
+                                bpf_printk("pstat %llu dstat %llu \n", *pstat3, *dstat2);
+                            } 
+
+                        } else {
+                            bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
+                        }
                         return XDP_DROP;
 				    }
                 }
@@ -164,7 +177,10 @@ int xdp_program(struct xdp_md *ctx)
             if (pstat) {
                 __sync_fetch_and_add(pstat, 1);
                 bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
-                //bpf_printk("pstat %llu \n", *pstat);
+                __u64 *dstat3 = bpf_map_lookup_elem(&stats, &drop);
+                if (dstat3) {
+                    bpf_printk("pstat %llu dstat %llu \n", *pstat, *dstat3);
+                }
             } else {
                 bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
             }
