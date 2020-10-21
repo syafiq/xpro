@@ -8,5 +8,7 @@ sudo rm -R /sys/fs/bpf/ens10/stats
 # load
 sudo ./xdp_loader --dev ens10 --skb-mode
 
+# restore the tdiff map
+sudo ./usp_tmp
 # listener uspace
 # sudo ./xpro_uspace
