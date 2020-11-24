@@ -19,6 +19,7 @@ modules.order
 
 # undesired dir and file
 libbpf/src/build/
+coap_client/build/
 src/xdp_loader
 src/xdp_uspace
 src/xdp_stats
