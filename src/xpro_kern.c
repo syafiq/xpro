@@ -68,25 +68,25 @@ int xdp_program(struct xdp_md *ctx)
 				get_ns = bpf_ktime_get_ns();
 				t_now = &get_ns;
 
-                __u32 tdiff_num = 1;
-                __u32 *tdk = &tdiff_num;
-                __u64 *td = bpf_map_lookup_elem(&tdiff, tdk);
-                
-                if (td) {
-				    if (mv_get && t_now) {
+        __u32 tdiff_num = 1;
+        __u32 *tdk = &tdiff_num;
+        __u64 *td = bpf_map_lookup_elem(&tdiff, tdk);
+
+        if (td) {
+          if (mv_get && t_now) {
+				    mv.ts1 = *((__u64 *)mv_get);
+				    mv.ts2 = *((__u64 *)mv_get +1);
+				    mv.c = *((__u64 *)mv_get +2);
+				    mv.dc = *((__u64 *)mv_get +3);
+				    mv.mark = *((__u64 *)mv_get +4);
 				    	
-				    	mv.ts1 = *((__u64 *)mv_get);
-				    	mv.ts2 = *((__u64 *)mv_get +1);
-				    	mv.c = *((__u64 *)mv_get +2);
-				    	mv.dc = *((__u64 *)mv_get +3);
-				    	mv.mark = *((__u64 *)mv_get +4);
-				    	
-				    	if(((*t_now)+(*td)-mv.ts2) > TT1) {
-				    		mv.ts1 = (*t_now) + (*td);
-				    		mv.c = 0;
-				    		mv.dc = 0;
-				    		mv.mark = 1;
-				    	}
+				    if(((*t_now)+(*td)-mv.ts2) > TT1) {
+				    	mv.ts1 = (*t_now) + (*td);
+				    	mv.c = 0;
+				    	mv.dc = 0;
+				    	mv.mark = 1;
+				    }
+
 				    } else {
 				    	mv.ts1 = (*t_now) + (*td);
 				    	mv.ts2 = (*t_now) + (*td);
@@ -96,7 +96,7 @@ int xdp_program(struct xdp_md *ctx)
 				    }
 				    mv.c = mv.c + 1;
 				    mv.dc = mv.dc + 1;
-			        mv.ts2 = (*t_now) + (*td);
+			      mv.ts2 = (*t_now) + (*td);
 
 				    __u64 mv_arr[5] = {mv.ts1, mv.ts2, mv.c, mv.dc, mv.mark};
 				    void *vp = mv_arr;
@@ -105,19 +105,19 @@ int xdp_program(struct xdp_md *ctx)
 
 				    if ((mv.ts2-mv.ts1) > TT2 ) { 
 				    	if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
-                            __u64 *dstat = bpf_map_lookup_elem(&stats, &drop);
-                            if (dstat) {
-                                __sync_fetch_and_add(dstat, 1);
-                                bpf_map_update_elem(&stats, &drop, dstat, BPF_ANY);
+                __u64 *dstat = bpf_map_lookup_elem(&stats, &drop);
+                if (dstat) {
+                  __sync_fetch_and_add(dstat, 1);
+                  bpf_map_update_elem(&stats, &drop, dstat, BPF_ANY);
 
-                                __u64 *pstat2 = bpf_map_lookup_elem(&stats, &pass);
-                                if (pstat2) {
-                                    //bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
-                                } 
+                  __u64 *pstat2 = bpf_map_lookup_elem(&stats, &pass);
+                  if (pstat2) {
+                    //bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
+                  } 
 
-                            } else {
-                                bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
-                            }
+                  } else {
+                    bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
+                  }
 				    		return XDP_DROP;
 				    	}
 				    }
@@ -149,46 +149,46 @@ int xdp_program(struct xdp_md *ctx)
 				    		mvl.c = *((__u64 *)look+2);
 				    		mvl.dc = *((__u64 *)look+3);
 				    		curr_cdc = curr_cdc+mv.c+mv.dc;
-                            //bpf_printk("curr_cdc %llu \n", curr_cdc);
+                  //bpf_printk("curr_cdc %llu \n", curr_cdc);
 				    	}
 				    }
 
-                    bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
+            bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				    if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
-                        __u64 *dstat2 = bpf_map_lookup_elem(&stats, &drop);
-                        if (dstat2) {
-                            __sync_fetch_and_add(dstat2, 1);
-                            bpf_map_update_elem(&stats, &drop, dstat2, BPF_ANY);
+              __u64 *dstat2 = bpf_map_lookup_elem(&stats, &drop);
+              if (dstat2) {
+                __sync_fetch_and_add(dstat2, 1);
+                bpf_map_update_elem(&stats, &drop, dstat2, BPF_ANY);
 
-                            __u64 *pstat3 = bpf_map_lookup_elem(&stats, &pass);
-                            if (pstat3) {
-                                bpf_printk("pstat %llu dstat %llu \n", *pstat3, *dstat2);
-                            } 
+                __u64 *pstat3 = bpf_map_lookup_elem(&stats, &pass);
+                if (pstat3) {
+                  bpf_printk("pstat %llu dstat %llu \n", *pstat3, *dstat2);
+                } 
 
-                        } else {
-                            bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
-                        }
-                        return XDP_DROP;
+              } else {
+                bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
+              }
+              return XDP_DROP;
 				    }
-                }
-			}
+          }
+			  }
 
-            __u64 *pstat = bpf_map_lookup_elem(&stats, &pass);
-            if (pstat) {
-                __sync_fetch_and_add(pstat, 1);
-                bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
-                __u64 *dstat3 = bpf_map_lookup_elem(&stats, &drop);
-                if (dstat3) {
-                    bpf_printk("pstat %llu dstat %llu \n", *pstat, *dstat3);
-                } else {
-                    bpf_printk("pstat %llu \n", *pstat);
-                }
-            } else {
-                bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
-            }
+        __u64 *pstat = bpf_map_lookup_elem(&stats, &pass);
+        if (pstat) {
+          __sync_fetch_and_add(pstat, 1);
+          bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
+          __u64 *dstat3 = bpf_map_lookup_elem(&stats, &drop);
+          if (dstat3) {
+            bpf_printk("pstat %llu dstat %llu \n", *pstat, *dstat3);
+          } else {
+            bpf_printk("pstat %llu \n", *pstat);
+          }
+        } else {
+          bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
+        }
 
-		}
-	}
+		  }
+	  }
 
     return XDP_PASS;
 }
