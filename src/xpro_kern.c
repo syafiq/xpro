@@ -30,15 +30,19 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT1 = 1000000000;
 	__u64 TT2 = 1000000000;
 	__u64 TT3 = 1000000000;
-	__u64 TF1 = 2000000;
+	__u64 TF1;
 	__u64 TF2 = 500000;
 	int a;
-    __u64 dropvalinit = 0;
-    __u32 drop = 1;
-    __u64 passvalinit = 0;
-    __u32 pass = 2;
+  __u64 dropvalinit = 0;
+  __u64 passvalinit = 0;
+  __u32 drop_gen1 = 1;
+  __u32 pass_gen1 = 2;
+  __u32 drop_gen2 = 3;
+  __u32 pass_gen2 = 4;
+  __u64 *dstat_gen1, *dstat_gen2;
+  __u64 *pstat_gen1, *pstat_gen2;
 
-    // sanity check
+  // sanity check
 	ip = data + sizeof(*eth);
 	udp = (void *)ip + sizeof(*ip);
 	if ((void *)udp + sizeof(*udp) > data_end) {
@@ -58,12 +62,14 @@ int xdp_program(struct xdp_md *ctx)
 			msg = (unsigned char *)payload + 9; // FIXME: and also here
 			msg_n = bpf_probe_read_kernel_str(msg_inside, sizeof(msg_inside), msg);
 			if ((dest_n > 0) && (msg_n > 0)) { 
-				// bpf_printk("dest %s \n", dest_inside);
-				// bpf_printk("msg %s \n", msg_inside);
 				ka.saddr = ip->saddr;
 				// FIXME: should be dest_inside, but strtoul conversion in bpf is kind of weird
+        if(ip->saddr == 342206656) { //gen1 -> normal one
+          TF1 = 200000;
+        } else { // gen2 or else -> infected
+          TF1 = 100000;
+        }
 				ka.daddr = 2893719744; 
-				//bpf_printk("ka.saddr %lu ka.daddr %lu \n", ka.saddr, ka.daddr);
 				__u64 *mv_get = bpf_map_lookup_elem(&mapall, &ka);
 				get_ns = bpf_ktime_get_ns();
 				t_now = &get_ns;
@@ -90,7 +96,7 @@ int xdp_program(struct xdp_md *ctx)
 				    } else {
 				    	mv.ts1 = (*t_now) + (*td);
 				    	mv.ts2 = (*t_now) + (*td);
-                        mv.c = 0;
+              mv.c = 0;
 				    	mv.dc = 0;
 				    	mv.mark = 0;
 				    }
@@ -105,23 +111,45 @@ int xdp_program(struct xdp_md *ctx)
 
 				    if ((mv.ts2-mv.ts1) > TT2 ) { 
 				    	if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
-                __u64 *dstat = bpf_map_lookup_elem(&stats, &drop);
-                if (dstat) {
-                  __sync_fetch_and_add(dstat, 1);
-                  bpf_map_update_elem(&stats, &drop, dstat, BPF_ANY);
-
-                  __u64 *pstat2 = bpf_map_lookup_elem(&stats, &pass);
-                  if (pstat2) {
-                    //bpf_printk("pstat %llu dstat %llu \n", *pstat2, *dstat);
-                  } 
-
+                if(ip->saddr == 342206656) { //gen1 -> normal one
+                  dstat_gen1 = bpf_map_lookup_elem(&stats, &drop_gen1);
+                  if (dstat_gen1) {
+                    __sync_fetch_and_add(dstat_gen1, 1);
+                    bpf_map_update_elem(&stats, &drop_gen1, dstat_gen1, BPF_ANY);
                   } else {
-                    bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
+                    bpf_map_update_elem(&stats, &drop_gen1, &dropvalinit, BPF_ANY);
                   }
+                } else {
+                  dstat_gen2 = bpf_map_lookup_elem(&stats, &drop_gen2);
+                  if (dstat_gen2) {
+                    __sync_fetch_and_add(dstat_gen2, 1);
+                    bpf_map_update_elem(&stats, &drop_gen2, dstat_gen2, BPF_ANY);
+                  } else {
+                    bpf_map_update_elem(&stats, &drop_gen2, &dropvalinit, BPF_ANY);
+                  }
+                }
 				    		return XDP_DROP;
 				    	}
 				    }
 
+            if(ip->saddr == 342206656) { //gen1 -> normal one
+              pstat_gen1 = bpf_map_lookup_elem(&stats, &pass_gen1);
+              if (pstat_gen1) {
+                __sync_fetch_and_add(pstat_gen1, 1);
+                bpf_map_update_elem(&stats, &pass_gen1, pstat_gen1, BPF_ANY);
+              } else {
+                bpf_map_update_elem(&stats, &pass_gen1, &passvalinit, BPF_ANY);
+              }
+            } else {
+              pstat_gen2 = bpf_map_lookup_elem(&stats, &pass_gen2);
+              if (pstat_gen2) {
+                __sync_fetch_and_add(pstat_gen2, 1);
+                bpf_map_update_elem(&stats, &pass_gen2, pstat_gen2, BPF_ANY);
+              } else {
+                bpf_map_update_elem(&stats, &pass_gen2, &passvalinit, BPF_ANY);
+              }
+            }
+            
 				    // LOW RATE attack
 				    // =======================================================				
 				    __u64 *look;
@@ -149,44 +177,16 @@ int xdp_program(struct xdp_md *ctx)
 				    		mvl.c = *((__u64 *)look+2);
 				    		mvl.dc = *((__u64 *)look+3);
 				    		curr_cdc = curr_cdc+mv.c+mv.dc;
-                  //bpf_printk("curr_cdc %llu \n", curr_cdc);
+                //bpf_printk("curr_cdc %llu \n", curr_cdc);
 				    	}
 				    }
 
-            bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
+            //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				    if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
-              __u64 *dstat2 = bpf_map_lookup_elem(&stats, &drop);
-              if (dstat2) {
-                __sync_fetch_and_add(dstat2, 1);
-                bpf_map_update_elem(&stats, &drop, dstat2, BPF_ANY);
-
-                __u64 *pstat3 = bpf_map_lookup_elem(&stats, &pass);
-                if (pstat3) {
-                  bpf_printk("pstat %llu dstat %llu \n", *pstat3, *dstat2);
-                } 
-
-              } else {
-                bpf_map_update_elem(&stats, &drop, &dropvalinit, BPF_ANY);
-              }
               return XDP_DROP;
 				    }
           }
 			  }
-
-        __u64 *pstat = bpf_map_lookup_elem(&stats, &pass);
-        if (pstat) {
-          __sync_fetch_and_add(pstat, 1);
-          bpf_map_update_elem(&stats, &pass, pstat, BPF_ANY);
-          __u64 *dstat3 = bpf_map_lookup_elem(&stats, &drop);
-          if (dstat3) {
-            bpf_printk("pstat %llu dstat %llu \n", *pstat, *dstat3);
-          } else {
-            bpf_printk("pstat %llu \n", *pstat);
-          }
-        } else {
-          bpf_map_update_elem(&stats, &pass, &passvalinit, BPF_ANY);
-        }
-
 		  }
 	  }
 
