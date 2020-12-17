@@ -72,7 +72,7 @@ int main()
 
 	while(1) 
 	{
-		redisContext *db_m = redisConnect("192.168.122.172", 6379);
+		redisContext *db_m = redisConnect("192.168.122.171", 6379);
 
 		if (db_m == NULL || db_m->err) 
 		{
