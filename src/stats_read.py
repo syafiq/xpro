@@ -17,8 +17,12 @@ while (1):
             val = val[1].split(" ")
             lval = len(val)-1
             out = ""
+            flag = 0
             while (val[lval] != ''):
-                if (val[lval] != "00"):
+                if ((val[lval] == "00") & (flag == 0)):
+                    pass
+                else:
+                    flag = 1
                     out += val[lval]
                 lval -= 1
             return int(out,16)
@@ -28,5 +32,5 @@ while (1):
     dg2 = print_res(drop_gen2)
     pg2 = print_res(pass_gen2)
     
-    print("drop_gen1",dg1,"pass_gen1",pg1,"drop_gen2",dg2,"pass_gen2",pg2)
+    print("pass_gen1",pg1,"drop_gen1",dg1,"pass_gen2",pg2,"drop_gen2",dg2)
     time.sleep(2)
