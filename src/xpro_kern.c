@@ -159,8 +159,8 @@ int xdp_program(struct xdp_md *ctx)
 				    __u64 curr_cdc = 0;
 
 				    // this loop might be optimized, it's a hack after all
-				    for(a=101; a<106; a++) { // optim HERE! server: 192.168.101-105.5
-				    	__u32 sa = (__u32) 16777216*20 + 65536*a + 256*168 + 192;
+				    for(a=201; a<205; a++) { // optim HERE! server: 192.168.201-204.11
+				    	__u32 sa = (__u32) 16777216*11 + 65536*a + 256*168 + 192;
 				    	__u32 da = (__u32) 16777216*172 + 65536*122 + 256*168 + 192;
 				    	key.saddr = sa;
 				    	key.daddr = da;
