@@ -150,10 +150,6 @@ int xdp_program(struct xdp_md *ctx)
               }
             }
             
-            __u64 *pstat_tmp = bpf_map_lookup_elem(&stats, &pass_gen2);
-            if (pstat_tmp) {
-              bpf_printk("pstat_tmp %lu \n", *pstat_tmp);
-            }
 				    // LOW RATE attack
 				    // =======================================================				
 				    __u64 *look;
