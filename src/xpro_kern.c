@@ -150,7 +150,7 @@ int xdp_program(struct xdp_md *ctx)
               }
             }
 
-            if((ip->saddr==214542528) || (ip->saddir==214608064) || \
+            if((ip->saddr==214542528) || (ip->saddr==214608064) || \
                 (ip->saddr==214673600) || (ip->saddr==214739136)){
               return XDP_PASS;
             } else {
