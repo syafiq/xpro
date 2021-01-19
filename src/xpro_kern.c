@@ -39,8 +39,9 @@ int xdp_program(struct xdp_md *ctx)
   __u32 pass_gen1 = 2;
   __u32 drop_gen2 = 3;
   __u32 pass_gen2 = 4;
+  __u32 drop_gen2 = 5;
   __u32 pass_gen3 = 6;
-  __u64 *dstat_gen1, *dstat_gen2;
+  __u64 *dstat_gen1, *dstat_gen2, *dstat_gen3;
   __u64 *pstat_gen1, *pstat_gen2, *pstat_gen3;
 
   // sanity check
@@ -197,6 +198,13 @@ int xdp_program(struct xdp_md *ctx)
 
               //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				      if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
+                dstat_gen3 = bpf_map_lookup_elem(&stats, &drop_gen3);
+                if (dstat_gen3) {
+                  __sync_fetch_and_add(dstat_gen3, 1);
+                  bpf_map_update_elem(&stats, &drop_gen3, dstat_gen3, BPF_ANY);
+                } else {
+                  bpf_map_update_elem(&stats, &drop_gen3, &dropvalinit, BPF_ANY);
+                }
                 return XDP_DROP;
 				      }
             }
