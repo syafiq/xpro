@@ -31,7 +31,7 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT2 = 1000000000;
 	__u64 TT3 = 1000000000;
 	__u64 TF1;
-	__u64 TF2 = 5000000;
+	__u64 TF2 = 300000;
 	int a;
   __u64 dropvalinit = 0;
   __u64 passvalinit = 0;
