@@ -31,7 +31,7 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT2 = 1000000000;
 	__u64 TT3 = 1000000000;
 	__u64 TF1;
-	__u64 TF2 = 500000;
+	__u64 TF2 = 5000000;
 	int a;
   __u64 dropvalinit = 0;
   __u64 passvalinit = 0;
@@ -192,7 +192,7 @@ int xdp_program(struct xdp_md *ctx)
 				      		mvl.c = *((__u64 *)look+2);
 				      		mvl.dc = *((__u64 *)look+3);
 				      		curr_cdc = curr_cdc+mv.c+mv.dc;
-                  bpf_printk("curr_cdc %llu \n", curr_cdc);
+                  bpf_printk("curr_cdc_tf2 %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				      	}
 				      }
 
