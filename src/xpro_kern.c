@@ -39,8 +39,9 @@ int xdp_program(struct xdp_md *ctx)
   __u32 pass_gen1 = 2;
   __u32 drop_gen2 = 3;
   __u32 pass_gen2 = 4;
+  __u32 pass_gen3 = 6;
   __u64 *dstat_gen1, *dstat_gen2;
-  __u64 *pstat_gen1, *pstat_gen2;
+  __u64 *pstat_gen1, *pstat_gen2, *pstat_gen3;
 
   // sanity check
 	ip = data + sizeof(*eth);
@@ -150,8 +151,17 @@ int xdp_program(struct xdp_md *ctx)
               }
             }
 
+            
             if((ip->saddr==214542528) || (ip->saddr==214608064) || \
-                (ip->saddr==214673600) || (ip->saddr==214739136)){
+            (ip->saddr==214673600) || (ip->saddr==214739136)){
+              pstat_gen3 = bpf_map_lookup_elem(&stats, &pass_gen3);
+              if (pstat_gen3) {
+                __sync_fetch_and_add(pstat_gen3, 1);
+                bpf_map_update_elem(&stats, &pass_gen3, pstat_gen3, BPF_ANY);
+              } else {
+                bpf_map_update_elem(&stats, &pass_gen3, &passvalinit, BPF_ANY);
+              }
+              
               return XDP_PASS;
             } else {
 				      // LOW RATE attack
