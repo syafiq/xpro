@@ -149,42 +149,47 @@ int xdp_program(struct xdp_md *ctx)
                 bpf_map_update_elem(&stats, &pass_gen2, &passvalinit, BPF_ANY);
               }
             }
-            
-				    // LOW RATE attack
-				    // =======================================================				
-				    __u64 *look;
-				    struct mapval mvl;
-				    __u64 curr_ts1 = 0;
-				    __u64 curr_ts2 = 0;
-				    __u64 curr_cdc = 0;
 
-				    // this loop might be optimized, it's a hack after all
-				    for(a=201; a<205; a++) { // optim HERE! server: 192.168.201-204.11
-				    	__u32 sa = (__u32) 16777216*11 + 65536*a + 256*168 + 192;
-				    	__u32 da = (__u32) 16777216*172 + 65536*122 + 256*168 + 192;
-				    	key.saddr = sa;
-				    	key.daddr = da;
-				    	look = bpf_map_lookup_elem(&mapall, &key);
-				    	if (look) {
-				    		mvl.ts1 = *((__u64 *)look);
-				    		if ((mvl.ts1 < curr_ts1) || (curr_ts1 == 0)) {
-				    			curr_ts1 = mvl.ts1;
-				    		}
-				    		mvl.ts2 = *((__u64 *)look+1);
-				    		if (mvl.ts2 > curr_ts2) {
-				    			curr_ts2 = mvl.ts2;
-				    		}
-				    		mvl.c = *((__u64 *)look+2);
-				    		mvl.dc = *((__u64 *)look+3);
-				    		curr_cdc = curr_cdc+mv.c+mv.dc;
-                //bpf_printk("curr_cdc %llu \n", curr_cdc);
-				    	}
-				    }
+            if((ip->saddr==214542528) || (ip->saddir==214608064) || \
+                (ip->saddr==214673600) || (ip->saddr==214739136)){
+              return XDP_PASS;
+            } else {
+				      // LOW RATE attack
+				      // =======================================================				
+				      __u64 *look;
+				      struct mapval mvl;
+				      __u64 curr_ts1 = 0;
+				      __u64 curr_ts2 = 0;
+				      __u64 curr_cdc = 0;
 
-            //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
-				    if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
-              return XDP_DROP;
-				    }
+				      // this loop might be optimized, it's a hack after all
+				      for(a=201; a<205; a++) { // optim HERE! server: 192.168.201-204.11
+				      	__u32 sa = (__u32) 16777216*11 + 65536*a + 256*168 + 192;
+				      	__u32 da = (__u32) 16777216*172 + 65536*122 + 256*168 + 192;
+				      	key.saddr = sa;
+				      	key.daddr = da;
+				      	look = bpf_map_lookup_elem(&mapall, &key);
+				      	if (look) {
+				      		mvl.ts1 = *((__u64 *)look);
+				      		if ((mvl.ts1 < curr_ts1) || (curr_ts1 == 0)) {
+				      			curr_ts1 = mvl.ts1;
+				      		}
+				      		mvl.ts2 = *((__u64 *)look+1);
+				      		if (mvl.ts2 > curr_ts2) {
+				      			curr_ts2 = mvl.ts2;
+				      		}
+				      		mvl.c = *((__u64 *)look+2);
+				      		mvl.dc = *((__u64 *)look+3);
+				      		curr_cdc = curr_cdc+mv.c+mv.dc;
+                  //bpf_printk("curr_cdc %llu \n", curr_cdc);
+				      	}
+				      }
+
+              //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
+				      if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
+                return XDP_DROP;
+				      }
+            }
           }
 			  }
 		  }
