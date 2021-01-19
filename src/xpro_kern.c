@@ -192,9 +192,9 @@ int xdp_program(struct xdp_md *ctx)
 				      		mvl.c = *((__u64 *)look+2);
 				      		mvl.dc = *((__u64 *)look+3);
 				      		curr_cdc = curr_cdc+mv.c+mv.dc;
-                  bpf_printk("curr_cdc_tf2 %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				      	}
 				      }
+              bpf_printk("curr_cdc_tf2 %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 
               //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				      if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
