@@ -5,6 +5,9 @@ output=output.decode("utf-8")
 output=output.split("\n")
 num=output[-2].split(" ")
 num=int(num[1])
+drop_nonWL = 0
+pass_nonWL = 0
+pass_WL = 0
 for a in range(num):
     valout = ""
     key=output[3*a+1]
