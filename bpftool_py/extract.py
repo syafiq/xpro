@@ -19,8 +19,15 @@ for a in range(num):
             valout = valout+b
     valout = int(valout, 16)
     if (key == 5):
-        print("drop_nonWL:", valout)
+        #print("drop_nonWL:", valout)
+        drop_nonWL = valout
     elif (key == 6):
-        print("pass_nonWL:", valout)
+        #print("pass_nonWL:", valout)
+        pass_nonWL = valout
     elif (key == 7):
-        print("pass_WL:", valout)
+        #print("pass_WL:", valout)
+        pass_WL = valout
+
+print("pass_nonWL:", pass_nonWL)
+print("drop_nonWL:", drop_nonWL)
+print("pass_WL:", pass_WL)
