@@ -1,5 +1,5 @@
 import subprocess
-proc=subprocess.Popen(["sudo", "/usr/sbin/bpftool","map","dump","id","170"], stdout=subprocess.PIPE)
+proc=subprocess.Popen(["sudo", "/usr/sbin/bpftool","map","dump","name","stats"], stdout=subprocess.PIPE)
 output=proc.stdout.read()
 output=output.decode("utf-8")
 output=output.split("\n")
