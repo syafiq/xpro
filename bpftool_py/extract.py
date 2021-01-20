@@ -15,8 +15,7 @@ for a in range(num):
     val=val[1]
     val=val.split(" ")
     for b in reversed(val):
-        if (b != '00'):
-            valout = valout+b
+        valout = valout+b
     valout = int(valout, 16)
     if (key == 5):
         #print("drop_nonWL:", valout)
