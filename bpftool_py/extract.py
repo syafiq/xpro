@@ -39,10 +39,10 @@ for a in range(num):
     elif (key == 7):
         mult_pass_WL = valout
 
-print("sing_pass_nonWL:", sing_pass_nonWL)
-print("sing_drop_nonWL:", sing_drop_nonWL)
 print("sing_pass_WL:", sing_pass_WL)
 print("sing_drop_WL:", sing_drop_WL)
+print("sing_pass_nonWL:", sing_pass_nonWL)
+print("sing_drop_nonWL:", sing_drop_nonWL)
 print("mult_pass_nonWL:", mult_pass_nonWL)
 print("mult_drop_nonWL:", mult_drop_nonWL)
 print("mult_pass_WL:", mult_pass_WL)
