@@ -31,7 +31,7 @@ int xdp_program(struct xdp_md *ctx)
 	__u64 TT2 = 1000000000;
 	__u64 TT3 = 1000000000;
 	__u64 TF1;
-	__u64 TF2 = 300000;
+	__u64 TF2 = 800000;
 	int a;
   __u64 dropvalinit = 0;
   __u64 passvalinit = 0;
@@ -67,8 +67,8 @@ int xdp_program(struct xdp_md *ctx)
 			if ((dest_n > 0) && (msg_n > 0)) { 
 				ka.saddr = ip->saddr;
 				// FIXME: should be dest_inside, but strtoul conversion in bpf is kind of weird
-        if(ip->saddr == 342206656) { //gen1 -> normal one
-          TF1 = 200000;
+        if(ip->saddr == 214542528) { //gen1 -> normal one
+          TF1 = 20000000;
         } else { // gen2 or else -> infected
           TF1 = 100000;
         }
@@ -114,7 +114,7 @@ int xdp_program(struct xdp_md *ctx)
 
 				    if ((mv.ts2-mv.ts1) > TT2 ) { 
 				    	if (((mv.c*1000000000)/(mv.ts2-mv.ts1)) > TF1) {
-                if(ip->saddr == 342206656) { //gen1 -> normal one
+                if(ip->saddr == 214542528) { //gen1 -> normal one
                   dstat_gen1 = bpf_map_lookup_elem(&stats, &drop_gen1);
                   if (dstat_gen1) {
                     __sync_fetch_and_add(dstat_gen1, 1);
@@ -135,7 +135,7 @@ int xdp_program(struct xdp_md *ctx)
 				    	}
 				    }
 
-            if(ip->saddr == 342206656) { //gen1 -> normal one
+            if(ip->saddr == 214542528) { //gen1 -> normal one
               pstat_gen1 = bpf_map_lookup_elem(&stats, &pass_gen1);
               if (pstat_gen1) {
                 __sync_fetch_and_add(pstat_gen1, 1);
@@ -194,7 +194,7 @@ int xdp_program(struct xdp_md *ctx)
 				      		curr_cdc = curr_cdc+mv.c+mv.dc;
 				      	}
 				      }
-              bpf_printk("curr_cdc_tf2 %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
+              //bpf_printk("curr_cdc_tf2 %llu \n", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 
               //bpf_printk("TF2_calc %llu ", (curr_cdc*1000000000/(curr_ts2-curr_ts1)));
 				      if ((curr_ts2-curr_ts1 > TT3) && ((curr_cdc*1000000000/(curr_ts2-curr_ts1)) >= TF2) ) {
