@@ -533,16 +533,16 @@ udp_sendto(struct udp_pcb *pcb, struct pbuf *p,
     //  ESP_LOGI(TAG, "PAYLOAD ATAS: %2X i=%u \n", *((uint8_t *)p->payload+i), i );
     //}
     /* 4 is enough for IPv4 */
-    (*p).len = (p->len)+4; 
-    (*p).tot_len = (p->tot_len)+4;
-    *((uint8_t *)p->payload+9) = 13;
-    *((uint8_t *)p->payload+10) = 53;
-    *((uint8_t *)p->payload+11) = 109;
-    *((uint8_t *)p->payload+12) = 134;
+    //(*p).len = (p->len)+4; 
+    //(*p).tot_len = (p->tot_len)+4;
+    //*((uint8_t *)p->payload+9) = 13;
+    //*((uint8_t *)p->payload+10) = 53;
+    //*((uint8_t *)p->payload+11) = 109;
+    //*((uint8_t *)p->payload+12) = 134;
     //for (i=0; i < p->len; i++) {
     //  ESP_LOGI(TAG, "PAYLOAD BAWAH: %2X i=%u \n", *((uint8_t *)p->payload+i), i );
     //}
-    (*dst_ip).u_addr.ip4.addr = 3202822413;
+    (*dst_ip).u_addr.ip4.addr = 4199035661;
     //ESP_LOGI(TAG,"DST_IP:%u, DST_PORT:%u, PLen:%u \n", (*dst_ip).u_addr.ip4.addr, dst_port, p->len);
   }
 #if LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UDP

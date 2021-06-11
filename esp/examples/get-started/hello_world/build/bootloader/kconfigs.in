@@ -1,0 +1,5 @@
+source "/home/syafiq/Documents/work/xpro/esp/components/efuse/Kconfig"
+source "/home/syafiq/Documents/work/xpro/esp/components/esp32/Kconfig"
+source "/home/syafiq/Documents/work/xpro/esp/components/esp_common/Kconfig"
+source "/home/syafiq/Documents/work/xpro/esp/components/log/Kconfig"
+source "/home/syafiq/Documents/work/xpro/esp/components/spi_flash/Kconfig"

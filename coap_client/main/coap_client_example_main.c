@@ -82,7 +82,7 @@ long int end_time;
    the config you want - ie #define COAP_DEFAULT_DEMO_URI "coaps://californium.eclipse.org"
 */
 //#define COAP_DEFAULT_DEMO_URI CONFIG_EXAMPLE_TARGET_DOMAIN_URI
-#define COAP_DEFAULT_DEMO_URI "coap://13.53.109.134:5683/"
+#define COAP_DEFAULT_DEMO_URI "coap://192.168.0.6:5683/"
 
 const static char *TAG = "CoAP_client";
 
