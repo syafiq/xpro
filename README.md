@@ -1,1 +1,1 @@
-init README
+The proxy implementation is inside /src. To attach the XPRO logic to the interface, there is a script to load and unload the BPF program. Please make sure that the interface name is the same as in your machine. 
